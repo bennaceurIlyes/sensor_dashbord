@@ -7,7 +7,7 @@ const char* ssid = "YOUR_WIFI_SSID";
 const char* password = "YOUR_WIFI_PASSWORD";
 
 // API details
-const char* serverUrl = "https://your-vercel-app.vercel.app/api/readings"; // OR http://your-local-ip:3000/api/readings for testing
+const char* serverUrl = "https://solordraying.vercel.app/api/readings"; // Your actual Vercel app URL
 const char* deviceApiKey = "YOUR_SECRET_DEVICE_KEY";
 const char* deviceId = "sechoir-solaire-esp32";
 
