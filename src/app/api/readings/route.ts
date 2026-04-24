@@ -75,7 +75,8 @@ export async function GET(request: Request) {
     const timeAgo = new Date();
     timeAgo.setHours(timeAgo.getHours() - hours);
 
-    const { data, error } = await supabase
+    const supabaseAdmin = getServiceSupabase();
+    const { data, error } = await supabaseAdmin
       .from('sensor_readings')
       .select('*')
       .eq('device_id', deviceId)

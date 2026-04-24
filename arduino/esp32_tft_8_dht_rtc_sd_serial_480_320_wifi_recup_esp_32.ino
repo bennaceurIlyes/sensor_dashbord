@@ -6,6 +6,7 @@
 #include "RTClib.h"
 #include <WiFi.h>
 #include <HTTPClient.h>
+#include <WiFiClientSecure.h>
 
 // -------- WIFI --------
 const char* ssid = "Redmi Note 10";
@@ -84,7 +85,7 @@ void afficherPage1(bool wifiOK){
 
   tft.setCursor(80,200);
   tft.setTextColor(wifiOK?TFT_GREEN:TFT_RED);
-  tft.println(wifiOK?"ENVOI OK":"HORS LIGNE");
+  tft.println(wifiOK?"WIFI OK":"HORS LIGNE");
 }
 
 // -------- PAGE 2 --------
@@ -140,8 +141,10 @@ void sendToVercel(float t[], float h[]){
 
   if(WiFi.status()!=WL_CONNECTED) return;
 
+  WiFiClientSecure client;
+  client.setInsecure();
   HTTPClient http;
-  http.begin(serverUrl);
+  http.begin(client, serverUrl);
   http.addHeader("Content-Type", "application/json");
   http.addHeader("x-api-key", deviceApiKey);
 
