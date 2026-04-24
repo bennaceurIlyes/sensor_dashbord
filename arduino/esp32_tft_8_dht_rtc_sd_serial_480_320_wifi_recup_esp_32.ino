@@ -11,9 +11,10 @@
 const char* ssid = "Redmi Note 10";
 const char* password = "said2021.";
 
-// -------- THINGSPEAK --------
-String apiKey1 = "NB7B4NWLMJW082QO"; // DHT1 → DHT4
-String apiKey2 = "DYDKCYGX7MX841YL"; // DHT5 → DHT8
+// -------- VERCEL API --------
+const char* serverUrl = "https://solordraying.vercel.app/api/readings";
+const char* deviceApiKey = "Sechoir_Bechar_2026";
+const char* deviceId = "sechoir-solaire-esp32";
 
 // -------- TFT --------
 TFT_eSPI tft = TFT_eSPI();
@@ -134,43 +135,41 @@ void afficherPage3(float t[], float h[]){
   }
 }
 
-// -------- ENVOI 2 CHANNELS --------
-void sendToThingSpeak(float t[], float h[]){
+// -------- ENVOI VERCEL --------
+void sendToVercel(float t[], float h[]){
 
   if(WiFi.status()!=WL_CONNECTED) return;
 
   HTTPClient http;
+  http.begin(serverUrl);
+  http.addHeader("Content-Type", "application/json");
+  http.addHeader("x-api-key", deviceApiKey);
 
-  // CHANNEL 1
-  String url1="http://api.thingspeak.com/update?api_key="+apiKey1;
-  url1+="&field1="+String(t[0]);
-  url1+="&field2="+String(h[0]);
-  url1+="&field3="+String(t[1]);
-  url1+="&field4="+String(h[1]);
-  url1+="&field5="+String(t[2]);
-  url1+="&field6="+String(h[2]);
-  url1+="&field7="+String(t[3]);
-  url1+="&field8="+String(h[3]);
+  String payload = "{";
+  payload += "\"deviceId\":\"" + String(deviceId) + "\",";
+  payload += "\"readings\":[";
 
-  http.begin(url1);
-  http.GET();
-  http.end();
+  for (int i = 0; i < 8; i++) {
+    payload += "{";
+    payload += "\"sensor\":\"DHT" + String(i + 1) + "\",";
+    payload += "\"temperature\":" + String(t[i]) + ",";
+    payload += "\"humidity\":" + String(h[i]);
+    payload += "}";
+    if (i < 7) payload += ",";
+  }
+  
+  payload += "]}";
 
-  delay(16000); // 🔥 obligatoire
-
-  // CHANNEL 2
-  String url2="http://api.thingspeak.com/update?api_key="+apiKey2;
-  url2+="&field1="+String(t[4]);
-  url2+="&field2="+String(h[4]);
-  url2+="&field3="+String(t[5]);
-  url2+="&field4="+String(h[5]);
-  url2+="&field5="+String(t[6]);
-  url2+="&field6="+String(h[6]);
-  url2+="&field7="+String(t[7]);
-  url2+="&field8="+String(h[7]);
-
-  http.begin(url2);
-  http.GET();
+  int httpResponseCode = http.POST(payload);
+  
+  if (httpResponseCode > 0) {
+    Serial.print("Envoi Vercel OK: ");
+    Serial.println(httpResponseCode);
+  } else {
+    Serial.print("Erreur Vercel: ");
+    Serial.println(httpResponseCode);
+  }
+  
   http.end();
 }
 
@@ -198,7 +197,7 @@ void loop(){
   afficherPage1(wifiOK);
 
   if(wifiOK){
-    sendToThingSpeak(t,h);
+    sendToVercel(t,h);
   }
 
   delay(5000);

@@ -8,7 +8,7 @@ const char* password = "YOUR_WIFI_PASSWORD";
 
 // API details
 const char* serverUrl = "https://solordraying.vercel.app/api/readings"; // Your actual Vercel app URL
-const char* deviceApiKey = "YOUR_SECRET_DEVICE_KEY";
+const char* deviceApiKey = "Sechoir_Bechar_2026";
 const char* deviceId = "sechoir-solaire-esp32";
 
 // DHT Sensor definitions
