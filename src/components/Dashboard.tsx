@@ -137,7 +137,7 @@ function buildCSV(pivotData: PivotRow[]): string {
 export default function Dashboard() {
   const [readings, setReadings] = useState<SensorReading[]>([]);
   const [loading, setLoading] = useState(true);
-  const [timeRange, setTimeRange] = useState("1h");
+  const [timeRange, setTimeRange] = useState("all");
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
 
   /* ---------- Fetch ---------- */
@@ -614,7 +614,6 @@ export default function Dashboard() {
                 <TableBody>
                   {[...pivotData]
                     .reverse()
-                    .slice(0, 30)
                     .map((row, i) => (
                       <TableRow key={i} className="hover:bg-muted/30">
                         <TableCell className="sticky left-0 z-10 bg-background font-mono text-xs font-medium">
