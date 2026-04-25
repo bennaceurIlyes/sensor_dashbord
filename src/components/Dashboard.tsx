@@ -103,20 +103,28 @@ function pivotReadings(readings: SensorReading[]): PivotRow[] {
   return Object.values(grouped).sort((a, b) => a.timestamp - b.timestamp);
 }
 
-/** Build a proper CSV where each row = one sensor reading. */
-function buildCSV(readings: SensorReading[]): string {
+/** Build a proper CSV where each row = one timestamp and each DHT
+ *  has its own temperature & humidity column. */
+function buildCSV(pivotData: PivotRow[]): string {
   // Header
-  const headers = ["Date", "Heure", "Capteur", "Température (°C)", "Humidité (%)"];
+  const headers = ["Date", "Heure"];
+  SENSORS.forEach((s) => {
+    headers.push(`${s} T(°C)`, `${s} H(%)`);
+  });
 
-  const rows = readings.map((r) => {
-    const dt = new Date(r.created_at);
-    return [
+  const rows = pivotData.map((row) => {
+    const dt = new Date(row.timestamp);
+    const cols: (string | number)[] = [
       format(dt, "yyyy-MM-dd"),
       format(dt, "HH:mm:ss"),
-      r.sensor,
-      r.temperature !== undefined ? r.temperature : "",
-      r.humidity !== undefined ? r.humidity : ""
-    ].join(";");
+    ];
+    SENSORS.forEach((s) => {
+      cols.push(
+        row[`${s}_temp`] !== undefined ? Number(row[`${s}_temp`]) : "",
+        row[`${s}_hum`] !== undefined ? Number(row[`${s}_hum`]) : ""
+      );
+    });
+    return cols.join(";"); // semicolon delimiter – opens natively in Excel
   });
 
   return [headers.join(";"), ...rows].join("\n");
@@ -132,6 +140,12 @@ export default function Dashboard() {
   const [timeRange, setTimeRange] = useState("1h");
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const rowsPerPage = 50;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [timeRange]);
 
   /* ---------- Fetch ---------- */
   const fetchReadings = useCallback(async () => {
@@ -203,8 +217,9 @@ export default function Dashboard() {
       if (!res.ok) throw new Error("Fetch error");
       const json = await res.json();
       if (json.data) {
-        if (json.data.length === 0) return;
-        const csv = buildCSV(json.data);
+        const allPivotData = pivotReadings(json.data);
+        if (allPivotData.length === 0) return;
+        const csv = buildCSV(allPivotData);
         const BOM = "\uFEFF"; // UTF-8 BOM for Excel
         const blob = new Blob([BOM + csv], {
           type: "text/csv;charset=utf-8;",
@@ -224,6 +239,13 @@ export default function Dashboard() {
       setIsDownloading(false);
     }
   };
+
+  const reversedPivotData = [...pivotData].reverse();
+  const totalPages = Math.ceil(reversedPivotData.length / rowsPerPage);
+  const paginatedData = reversedPivotData.slice(
+    (currentPage - 1) * rowsPerPage,
+    currentPage * rowsPerPage
+  );
 
   /* ======================= RENDER ======================= */
   return (
@@ -621,9 +643,7 @@ export default function Dashboard() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {[...pivotData]
-                    .reverse()
-                    .map((row, i) => (
+                  {paginatedData.map((row, i) => (
                       <TableRow key={i} className="hover:bg-muted/30">
                         <TableCell className="sticky left-0 z-10 bg-background font-mono text-xs font-medium">
                           {row.time}
@@ -657,6 +677,31 @@ export default function Dashboard() {
                 </TableBody>
               </Table>
             </div>
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between p-4 border-t">
+                <p className="text-sm text-muted-foreground">
+                  Page {currentPage} sur {totalPages}
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    Précédent
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                  >
+                    Suivant
+                  </Button>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
