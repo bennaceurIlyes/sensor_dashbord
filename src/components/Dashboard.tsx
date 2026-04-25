@@ -137,8 +137,9 @@ function buildCSV(pivotData: PivotRow[]): string {
 export default function Dashboard() {
   const [readings, setReadings] = useState<SensorReading[]>([]);
   const [loading, setLoading] = useState(true);
-  const [timeRange, setTimeRange] = useState("all");
+  const [timeRange, setTimeRange] = useState("1h");
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   /* ---------- Fetch ---------- */
   const fetchReadings = useCallback(async () => {
@@ -203,21 +204,34 @@ export default function Dashboard() {
       : 0;
 
   /* ---------- CSV download ---------- */
-  const downloadCSV = () => {
-    if (pivotData.length === 0) return;
-    const csv = buildCSV(pivotData);
-    const BOM = "\uFEFF"; // UTF-8 BOM for Excel
-    const blob = new Blob([BOM + csv], {
-      type: "text/csv;charset=utf-8;",
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `sechoir_solaire_${format(new Date(), "yyyy-MM-dd_HH-mm")}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+  const downloadCSV = async () => {
+    setIsDownloading(true);
+    try {
+      const res = await fetch(`/api/readings?range=all`);
+      if (!res.ok) throw new Error("Fetch error");
+      const json = await res.json();
+      if (json.data) {
+        const allPivotData = pivotReadings(json.data);
+        if (allPivotData.length === 0) return;
+        const csv = buildCSV(allPivotData);
+        const BOM = "\uFEFF"; // UTF-8 BOM for Excel
+        const blob = new Blob([BOM + csv], {
+          type: "text/csv;charset=utf-8;",
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `sechoir_solaire_complet_${format(new Date(), "yyyy-MM-dd_HH-mm")}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   /* ======================= RENDER ======================= */
@@ -282,11 +296,15 @@ export default function Dashboard() {
 
           <Button
             onClick={downloadCSV}
-            disabled={pivotData.length === 0}
+            disabled={isDownloading || pivotData.length === 0}
             variant="outline"
             className="gap-2"
           >
-            <Download className="h-4 w-4" />
+            {isDownloading ? (
+              <RefreshCw className="h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4" />
+            )}
             Exporter CSV / Excel
           </Button>
         </div>
