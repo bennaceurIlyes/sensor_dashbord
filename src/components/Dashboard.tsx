@@ -103,28 +103,20 @@ function pivotReadings(readings: SensorReading[]): PivotRow[] {
   return Object.values(grouped).sort((a, b) => a.timestamp - b.timestamp);
 }
 
-/** Build a proper CSV where each row = one timestamp and each DHT
- *  has its own temperature & humidity column. */
-function buildCSV(pivotData: PivotRow[]): string {
+/** Build a proper CSV where each row = one sensor reading. */
+function buildCSV(readings: SensorReading[]): string {
   // Header
-  const headers = ["Date", "Heure"];
-  SENSORS.forEach((s) => {
-    headers.push(`${s} T(°C)`, `${s} H(%)`);
-  });
+  const headers = ["Date", "Heure", "Capteur", "Température (°C)", "Humidité (%)"];
 
-  const rows = pivotData.map((row) => {
-    const dt = new Date(row.timestamp);
-    const cols: (string | number)[] = [
+  const rows = readings.map((r) => {
+    const dt = new Date(r.created_at);
+    return [
       format(dt, "yyyy-MM-dd"),
       format(dt, "HH:mm:ss"),
-    ];
-    SENSORS.forEach((s) => {
-      cols.push(
-        row[`${s}_temp`] !== undefined ? Number(row[`${s}_temp`]) : "",
-        row[`${s}_hum`] !== undefined ? Number(row[`${s}_hum`]) : ""
-      );
-    });
-    return cols.join(";"); // semicolon delimiter – opens natively in Excel
+      r.sensor,
+      r.temperature !== undefined ? r.temperature : "",
+      r.humidity !== undefined ? r.humidity : ""
+    ].join(";");
   });
 
   return [headers.join(";"), ...rows].join("\n");
@@ -211,9 +203,8 @@ export default function Dashboard() {
       if (!res.ok) throw new Error("Fetch error");
       const json = await res.json();
       if (json.data) {
-        const allPivotData = pivotReadings(json.data);
-        if (allPivotData.length === 0) return;
-        const csv = buildCSV(allPivotData);
+        if (json.data.length === 0) return;
+        const csv = buildCSV(json.data);
         const BOM = "\uFEFF"; // UTF-8 BOM for Excel
         const blob = new Blob([BOM + csv], {
           type: "text/csv;charset=utf-8;",
