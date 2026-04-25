@@ -21,6 +21,9 @@ import {
   WifiOff,
   Sun,
   Activity,
+  ChevronLeft,
+  ChevronRight,
+  MoreHorizontal
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -35,21 +38,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 
 /* ---------- Types ---------- */
-type SensorReading = {
-  id: string;
-  device_id: string;
-  sensor: string;
-  temperature: number;
-  humidity: number;
-  created_at: string;
-};
-
-/* Pivoted row: one row per timestamp with DHT1‒DHT8 columns */
 type PivotRow = {
+  date: string;
   time: string;
   timestamp: number;
   [key: string]: string | number;
@@ -78,174 +71,131 @@ const SENSOR_COLORS: Record<string, string> = {
   DHT8: "#d946ef",
 };
 
-/* ---------- Helpers ---------- */
-
-/** Group raw readings into pivot rows: each row = one timestamp,
- *  columns = DHT1_temp, DHT1_hum, …, DHT8_temp, DHT8_hum */
-function pivotReadings(readings: SensorReading[]): PivotRow[] {
-  const grouped: Record<string, PivotRow> = {};
-
-  readings.forEach((r) => {
-    const ts = new Date(r.created_at).getTime();
-    // Round to nearest second so rows that arrive together are grouped
-    const key = Math.round(ts / 1000) * 1000;
-
-    if (!grouped[key]) {
-      grouped[key] = {
-        time: format(new Date(key), "HH:mm:ss"),
-        timestamp: key,
-      };
-    }
-    grouped[key][`${r.sensor}_temp`] = r.temperature;
-    grouped[key][`${r.sensor}_hum`] = r.humidity;
-  });
-
-  return Object.values(grouped).sort((a, b) => a.timestamp - b.timestamp);
-}
-
-/** Build a proper CSV where each row = one timestamp and each DHT
- *  has its own temperature & humidity column. */
-function buildCSV(pivotData: PivotRow[]): string {
-  // Header
-  const headers = ["Date", "Heure"];
-  SENSORS.forEach((s) => {
-    headers.push(`${s} T(°C)`, `${s} H(%)`);
-  });
-
-  const rows = pivotData.map((row) => {
-    const dt = new Date(row.timestamp);
-    const cols: (string | number)[] = [
-      format(dt, "yyyy-MM-dd"),
-      format(dt, "HH:mm:ss"),
-    ];
-    SENSORS.forEach((s) => {
-      cols.push(
-        row[`${s}_temp`] !== undefined ? Number(row[`${s}_temp`]) : "",
-        row[`${s}_hum`] !== undefined ? Number(row[`${s}_hum`]) : ""
-      );
-    });
-    return cols.join(";"); // semicolon delimiter – opens natively in Excel
-  });
-
-  return [headers.join(";"), ...rows].join("\n");
-}
-
 /* ================================================================== */
 /*                          DASHBOARD                                 */
 /* ================================================================== */
 
 export default function Dashboard() {
-  const [readings, setReadings] = useState<SensorReading[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [timeRange, setTimeRange] = useState("1h");
-  const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
-  const [isDownloading, setIsDownloading] = useState(false);
+  const [paginatedData, setPaginatedData] = useState<PivotRow[]>([]);
+  const [totalRecords, setTotalRecords] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [currentPage, setCurrentPage] = useState(1);
+
+  const [loading, setLoading] = useState(true);
+  const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
   const rowsPerPage = 50;
 
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [timeRange]);
-
   /* ---------- Fetch ---------- */
-  const fetchReadings = useCallback(async () => {
+  const fetchPage = useCallback(async (page: number) => {
+    setLoading(true);
     try {
-      const res = await fetch(`/api/readings?range=${timeRange}`);
+      const res = await fetch(`/api/data?page=${page}&limit=${rowsPerPage}`);
       if (!res.ok) throw new Error("Fetch error");
       const json = await res.json();
-      if (json.data) setReadings(json.data);
+      if (json.data) {
+        setPaginatedData(json.data);
+        setTotalPages(json.totalPages || 1);
+        setTotalRecords(json.totalRecords || 0);
+      }
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
       setLastRefreshed(new Date());
     }
-  }, [timeRange]);
+  }, [rowsPerPage]);
 
   useEffect(() => {
-    setLoading(true);
-    fetchReadings();
-    const id = setInterval(fetchReadings, 10_000);
+    fetchPage(currentPage);
+    const id = setInterval(() => fetchPage(currentPage), 30_000);
     return () => clearInterval(id);
-  }, [fetchReadings]);
-
-  /* ---------- Derived data ---------- */
-  const pivotData = pivotReadings(readings);
-
-  const latestReadings = readings.reduce(
-    (acc, curr) => {
-      if (
-        !acc[curr.sensor] ||
-        new Date(curr.created_at) > new Date(acc[curr.sensor].created_at)
-      ) {
-        acc[curr.sensor] = curr;
-      }
-      return acc;
-    },
-    {} as Record<string, SensorReading>
-  );
-
-  const averagesBySensor = SENSORS.reduce((acc, sensor) => {
-    const sensorReadings = readings.filter((r) => r.sensor === sensor);
-    if (sensorReadings.length > 0) {
-      const avgT = sensorReadings.reduce((s, r) => s + r.temperature, 0) / sensorReadings.length;
-      const avgH = sensorReadings.reduce((s, r) => s + r.humidity, 0) / sensorReadings.length;
-      acc[sensor] = { temperature: avgT, humidity: avgH };
-    }
-    return acc;
-  }, {} as Record<string, { temperature: number; humidity: number }>);
-
-  const activeSensors = Object.keys(latestReadings).length;
-  const avgTemp =
-    activeSensors > 0
-      ? Object.values(latestReadings).reduce(
-          (s, r) => s + r.temperature,
-          0
-        ) / activeSensors
-      : 0;
-  const avgHum =
-    activeSensors > 0
-      ? Object.values(latestReadings).reduce((s, r) => s + r.humidity, 0) /
-        activeSensors
-      : 0;
+  }, [fetchPage, currentPage]);
 
   /* ---------- CSV download ---------- */
-  const downloadCSV = async () => {
-    setIsDownloading(true);
-    try {
-      const res = await fetch(`/api/readings?range=all`);
-      if (!res.ok) throw new Error("Fetch error");
-      const json = await res.json();
-      if (json.data) {
-        const allPivotData = pivotReadings(json.data);
-        if (allPivotData.length === 0) return;
-        const csv = buildCSV(allPivotData);
-        const BOM = "\uFEFF"; // UTF-8 BOM for Excel
-        const blob = new Blob([BOM + csv], {
-          type: "text/csv;charset=utf-8;",
-        });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `sechoir_solaire_complet_${format(new Date(), "yyyy-MM-dd_HH-mm")}.csv`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsDownloading(false);
-    }
+  const downloadCSV = () => {
+    // Navigating to the export endpoint will trigger a file download natively
+    // without freezing the frontend browser memory.
+    window.location.href = '/api/data/export';
   };
 
-  const reversedPivotData = [...pivotData].reverse();
-  const totalPages = Math.ceil(reversedPivotData.length / rowsPerPage);
-  const paginatedData = reversedPivotData.slice(
-    (currentPage - 1) * rowsPerPage,
-    currentPage * rowsPerPage
-  );
+  /* ---------- Derived data (Current Page) ---------- */
+  const chartData = [...paginatedData].reverse(); // Oldest to newest for chart
+  const latestRow = paginatedData[0];
+
+  const activeSensors = latestRow
+    ? SENSORS.filter((s) => latestRow[`${s}_temp`] !== undefined).length
+    : 0;
+
+  let totalTemp = 0,
+    totalHum = 0,
+    countTemp = 0,
+    countHum = 0;
+
+  paginatedData.forEach((row) => {
+    SENSORS.forEach((s) => {
+      if (row[`${s}_temp`] !== undefined) {
+        totalTemp += Number(row[`${s}_temp`]);
+        countTemp++;
+      }
+      if (row[`${s}_hum`] !== undefined) {
+        totalHum += Number(row[`${s}_hum`]);
+        countHum++;
+      }
+    });
+  });
+
+  const avgTemp = countTemp > 0 ? totalTemp / countTemp : 0;
+  const avgHum = countHum > 0 ? totalHum / countHum : 0;
+
+  const latestReadings: Record<string, any> = {};
+  if (latestRow) {
+    SENSORS.forEach((s) => {
+      if (latestRow[`${s}_temp`] !== undefined) {
+        latestReadings[s] = {
+          temperature: latestRow[`${s}_temp`],
+          humidity: latestRow[`${s}_hum`],
+          time: latestRow.time,
+        };
+      }
+    });
+  }
+
+  const averagesBySensor: Record<string, any> = {};
+  SENSORS.forEach((s) => {
+    let sTemp = 0,
+      sHum = 0,
+      sCount = 0;
+    paginatedData.forEach((row) => {
+      if (row[`${s}_temp`] !== undefined) {
+        sTemp += Number(row[`${s}_temp`]);
+        sHum += Number(row[`${s}_hum`]);
+        sCount++;
+      }
+    });
+    if (sCount > 0) {
+      averagesBySensor[s] = {
+        temperature: sTemp / sCount,
+        humidity: sHum / sCount,
+      };
+    }
+  });
+
+  // Generate pagination buttons
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxVisible = 5;
+    let start = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+    let end = Math.min(totalPages, start + maxVisible - 1);
+    
+    if (end - start + 1 < maxVisible) {
+      start = Math.max(1, end - maxVisible + 1);
+    }
+
+    for (let i = start; i <= end; i++) {
+      pages.push(i);
+    }
+    return pages;
+  };
 
   /* ======================= RENDER ======================= */
   return (
@@ -283,9 +233,7 @@ export default function Dashboard() {
               <RefreshCw
                 className={`h-3 w-3 ${loading ? "animate-spin" : ""}`}
               />
-              {lastRefreshed
-                ? format(lastRefreshed, "HH:mm:ss")
-                : "…"}
+              {lastRefreshed ? format(lastRefreshed, "HH:mm:ss") : "…"}
             </span>
           </div>
         </div>
@@ -294,31 +242,20 @@ export default function Dashboard() {
       <main className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
         {/* ──── Controls ──── */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <Tabs
-            value={timeRange}
-            onValueChange={(v) => setTimeRange(v)}
-            className="w-full sm:w-auto"
-          >
-            <TabsList>
-              <TabsTrigger value="1h">1 Heure</TabsTrigger>
-              <TabsTrigger value="24h">24 Heures</TabsTrigger>
-              <TabsTrigger value="7d">7 Jours</TabsTrigger>
-              <TabsTrigger value="all">Tout</TabsTrigger>
-            </TabsList>
-          </Tabs>
+          <div>
+            <h2 className="text-xl font-semibold tracking-tight">Vue d'ensemble</h2>
+            <p className="text-sm text-muted-foreground">
+              Affichage des données paginées depuis le serveur ({totalRecords} enregistrements)
+            </p>
+          </div>
 
           <Button
             onClick={downloadCSV}
-            disabled={isDownloading || pivotData.length === 0}
-            variant="outline"
-            className="gap-2"
+            variant="default"
+            className="gap-2 bg-green-600 hover:bg-green-700 text-white"
           >
-            {isDownloading ? (
-              <RefreshCw className="h-4 w-4 animate-spin" />
-            ) : (
-              <Download className="h-4 w-4" />
-            )}
-            Exporter CSV / Excel
+            <Download className="h-4 w-4" />
+            Exporter Tout (Excel)
           </Button>
         </div>
 
@@ -330,7 +267,7 @@ export default function Dashboard() {
                 <Thermometer className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">Temp. moy.</p>
+                <p className="text-xs text-muted-foreground">Temp. moy. (Page)</p>
                 <p className="text-xl font-bold tabular-nums">
                   {avgTemp > 0 ? avgTemp.toFixed(1) : "—"}
                   <span className="text-sm font-normal text-muted-foreground">
@@ -347,7 +284,7 @@ export default function Dashboard() {
                 <Droplets className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">Humidité moy.</p>
+                <p className="text-xs text-muted-foreground">Hum. moy. (Page)</p>
                 <p className="text-xl font-bold tabular-nums">
                   {avgHum > 0 ? avgHum.toFixed(1) : "—"}
                   <span className="text-sm font-normal text-muted-foreground">
@@ -381,9 +318,9 @@ export default function Dashboard() {
                 <Clock className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">Lectures</p>
+                <p className="text-xs text-muted-foreground">Lectures (Total)</p>
                 <p className="text-xl font-bold tabular-nums">
-                  {pivotData.length}
+                  {totalRecords}
                 </p>
               </div>
             </CardContent>
@@ -411,7 +348,7 @@ export default function Dashboard() {
                   </CardTitle>
                   {data && (
                     <span className="text-[11px] text-muted-foreground">
-                      {format(new Date(data.created_at), "HH:mm")}
+                      {data.time}
                     </span>
                   )}
                 </CardHeader>
@@ -473,13 +410,13 @@ export default function Dashboard() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <Thermometer className="h-5 w-5 text-orange-500" />
-                Historique Température
+                Historique Température (Page Actuelle)
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={pivotData}>
+                  <LineChart data={chartData}>
                     <CartesianGrid
                       strokeDasharray="3 3"
                       vertical={false}
@@ -501,8 +438,7 @@ export default function Dashboard() {
                       contentStyle={{
                         borderRadius: "8px",
                         border: "none",
-                        boxShadow:
-                          "0 4px 12px rgb(0 0 0 / 0.08)",
+                        boxShadow: "0 4px 12px rgb(0 0 0 / 0.08)",
                         fontSize: "12px",
                       }}
                     />
@@ -535,13 +471,13 @@ export default function Dashboard() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <Droplets className="h-5 w-5 text-blue-500" />
-                Historique Humidité
+                Historique Humidité (Page Actuelle)
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={pivotData}>
+                  <LineChart data={chartData}>
                     <CartesianGrid
                       strokeDasharray="3 3"
                       vertical={false}
@@ -563,8 +499,7 @@ export default function Dashboard() {
                       contentStyle={{
                         borderRadius: "8px",
                         border: "none",
-                        boxShadow:
-                          "0 4px 12px rgb(0 0 0 / 0.08)",
+                        boxShadow: "0 4px 12px rgb(0 0 0 / 0.08)",
                         fontSize: "12px",
                       }}
                     />
@@ -598,7 +533,7 @@ export default function Dashboard() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <Clock className="h-5 w-5 text-muted-foreground" />
-              Dernières Mesures
+              Données (Page {currentPage} / {totalPages})
             </CardTitle>
           </CardHeader>
           <Separator />
@@ -608,7 +543,7 @@ export default function Dashboard() {
                 <TableHeader>
                   <TableRow className="bg-muted/50">
                     <TableHead className="sticky left-0 z-10 bg-muted/50 font-semibold">
-                      Heure
+                      Date & Heure
                     </TableHead>
                     {SENSORS.map((s) => (
                       <TableHead
@@ -643,61 +578,101 @@ export default function Dashboard() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {paginatedData.map((row, i) => (
-                      <TableRow key={i} className="hover:bg-muted/30">
-                        <TableCell className="sticky left-0 z-10 bg-background font-mono text-xs font-medium">
-                          {row.time}
-                        </TableCell>
-                        {SENSORS.map((s) => (
-                          <React.Fragment key={s}>
-                            <TableCell className="text-center tabular-nums text-sm">
-                              {row[`${s}_temp`] !== undefined
-                                ? row[`${s}_temp`]
-                                : "—"}
-                            </TableCell>
-                            <TableCell className="text-center tabular-nums text-sm">
-                              {row[`${s}_hum`] !== undefined
-                                ? row[`${s}_hum`]
-                                : "—"}
-                            </TableCell>
-                          </React.Fragment>
-                        ))}
-                      </TableRow>
-                    ))}
-                  {pivotData.length === 0 && (
+                  {loading && paginatedData.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={1 + SENSORS.length * 2} className="py-12 text-center text-muted-foreground">
+                        <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2" />
+                        Chargement des données...
+                      </TableCell>
+                    </TableRow>
+                  ) : paginatedData.map((row, i) => (
+                    <TableRow key={i} className="hover:bg-muted/30">
+                      <TableCell className="sticky left-0 z-10 bg-background whitespace-nowrap font-mono text-xs font-medium">
+                        {row.date} {row.time}
+                      </TableCell>
+                      {SENSORS.map((s) => (
+                        <React.Fragment key={s}>
+                          <TableCell className="text-center tabular-nums text-sm">
+                            {row[`${s}_temp`] !== undefined
+                              ? row[`${s}_temp`]
+                              : "—"}
+                          </TableCell>
+                          <TableCell className="text-center tabular-nums text-sm">
+                            {row[`${s}_hum`] !== undefined
+                              ? row[`${s}_hum`]
+                              : "—"}
+                          </TableCell>
+                        </React.Fragment>
+                      ))}
+                    </TableRow>
+                  ))}
+                  {!loading && paginatedData.length === 0 && (
                     <TableRow>
                       <TableCell
                         colSpan={1 + SENSORS.length * 2}
                         className="py-12 text-center text-muted-foreground"
                       >
-                        Aucune donnée pour cette période
+                        Aucune donnée disponible
                       </TableCell>
                     </TableRow>
                   )}
                 </TableBody>
               </Table>
             </div>
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between p-4 border-t">
+            
+            {/* Pagination Controls */}
+            {totalPages > 0 && (
+              <div className="flex flex-col sm:flex-row items-center justify-between p-4 border-t gap-4">
                 <p className="text-sm text-muted-foreground">
-                  Page {currentPage} sur {totalPages}
+                  Affichage de {paginatedData.length} lignes sur un total de {totalRecords}
                 </p>
-                <div className="flex gap-2">
+                <div className="flex items-center gap-1">
                   <Button
                     variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
+                    size="icon"
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1 || loading}
                   >
-                    Précédent
+                    <ChevronLeft className="h-4 w-4" />
                   </Button>
+                  
+                  {getPageNumbers().map(num => (
+                    <Button
+                      key={num}
+                      variant={currentPage === num ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setCurrentPage(num)}
+                      disabled={loading}
+                      className="w-9 h-9"
+                    >
+                      {num}
+                    </Button>
+                  ))}
+
+                  {totalPages > 5 && currentPage < totalPages - 2 && (
+                    <>
+                      <Button variant="outline" size="sm" disabled className="w-9 h-9 opacity-50">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage(totalPages)}
+                        disabled={loading}
+                        className="w-9 h-9"
+                      >
+                        {totalPages}
+                      </Button>
+                    </>
+                  )}
+
                   <Button
                     variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                    disabled={currentPage === totalPages}
+                    size="icon"
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages || loading}
                   >
-                    Suivant
+                    <ChevronRight className="h-4 w-4" />
                   </Button>
                 </div>
               </div>
