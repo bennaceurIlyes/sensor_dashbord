@@ -83,13 +83,26 @@ export async function GET(request: Request) {
       query = query.gte('created_at', timeAgo.toISOString());
     }
 
-    const { data, error } = await query;
+    const allData = [];
+    let from = 0;
+    const step = 1000;
+    const MAX_ROWS = 100000;
 
-    if (error) {
-      return NextResponse.json({ error: 'Database fetch error' }, { status: 500 });
+    while (allData.length < MAX_ROWS) {
+      const { data, error } = await query.range(from, from + step - 1);
+      if (error) {
+        return NextResponse.json({ error: 'Database fetch error' }, { status: 500 });
+      }
+      if (data && data.length > 0) {
+        allData.push(...data);
+        if (data.length < step) break;
+        from += step;
+      } else {
+        break;
+      }
     }
 
-    return NextResponse.json({ data });
+    return NextResponse.json({ data: allData });
   } catch (err: any) {
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
