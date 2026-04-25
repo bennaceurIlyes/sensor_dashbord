@@ -65,24 +65,25 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const deviceId = searchParams.get('deviceId') || 'sechoir-solaire-esp32';
-    const limit = parseInt(searchParams.get('limit') || '800'); // 100 sets of 8 readings
-    const range = searchParams.get('range') || '1h'; // 1h, 24h, 7d
-
-    let hours = 1;
-    if (range === '24h') hours = 24;
-    else if (range === '7d') hours = 24 * 7;
-
-    const timeAgo = new Date();
-    timeAgo.setHours(timeAgo.getHours() - hours);
+    const range = searchParams.get('range') || '1h'; // 1h, 24h, 7d, all
 
     const supabaseAdmin = getServiceSupabase();
-    const { data, error } = await supabaseAdmin
+    let query = supabaseAdmin
       .from('sensor_readings')
       .select('*')
       .eq('device_id', deviceId)
-      .gte('created_at', timeAgo.toISOString())
-      .order('created_at', { ascending: false })
-      .limit(limit);
+      .order('created_at', { ascending: false });
+
+    if (range !== 'all') {
+      let hours = 1;
+      if (range === '24h') hours = 24;
+      else if (range === '7d') hours = 24 * 7;
+      const timeAgo = new Date();
+      timeAgo.setHours(timeAgo.getHours() - hours);
+      query = query.gte('created_at', timeAgo.toISOString());
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       return NextResponse.json({ error: 'Database fetch error' }, { status: 500 });

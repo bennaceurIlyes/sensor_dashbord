@@ -178,6 +178,16 @@ export default function Dashboard() {
     {} as Record<string, SensorReading>
   );
 
+  const averagesBySensor = SENSORS.reduce((acc, sensor) => {
+    const sensorReadings = readings.filter((r) => r.sensor === sensor);
+    if (sensorReadings.length > 0) {
+      const avgT = sensorReadings.reduce((s, r) => s + r.temperature, 0) / sensorReadings.length;
+      const avgH = sensorReadings.reduce((s, r) => s + r.humidity, 0) / sensorReadings.length;
+      acc[sensor] = { temperature: avgT, humidity: avgH };
+    }
+    return acc;
+  }, {} as Record<string, { temperature: number; humidity: number }>);
+
   const activeSensors = Object.keys(latestReadings).length;
   const avgTemp =
     activeSensors > 0
@@ -266,6 +276,7 @@ export default function Dashboard() {
               <TabsTrigger value="1h">1 Heure</TabsTrigger>
               <TabsTrigger value="24h">24 Heures</TabsTrigger>
               <TabsTrigger value="7d">7 Jours</TabsTrigger>
+              <TabsTrigger value="all">Tout</TabsTrigger>
             </TabsList>
           </Tabs>
 
@@ -352,6 +363,7 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {SENSORS.map((sensor) => {
             const data = latestReadings[sensor];
+            const avgData = averagesBySensor[sensor];
             const color = SENSOR_COLORS[sensor];
             return (
               <Card
@@ -375,27 +387,41 @@ export default function Dashboard() {
                 <CardContent>
                   {data ? (
                     <div className="grid grid-cols-2 gap-3">
-                      <div className="flex items-center gap-2">
-                        <div className="rounded-md bg-orange-50 p-1.5 text-orange-500">
-                          <Thermometer className="h-4 w-4" />
-                        </div>
-                        <span className="text-lg font-bold tabular-nums">
-                          {data.temperature}
-                          <span className="text-xs font-normal text-muted-foreground">
-                            °C
+                      <div className="flex flex-col">
+                        <div className="flex items-center gap-2">
+                          <div className="rounded-md bg-orange-50 p-1.5 text-orange-500">
+                            <Thermometer className="h-4 w-4" />
+                          </div>
+                          <span className="text-lg font-bold tabular-nums">
+                            {data.temperature}
+                            <span className="text-xs font-normal text-muted-foreground">
+                              °C
+                            </span>
                           </span>
-                        </span>
+                        </div>
+                        {avgData && (
+                          <span className="text-[10px] text-muted-foreground mt-1 ml-8">
+                            Moy: {avgData.temperature.toFixed(1)}°C
+                          </span>
+                        )}
                       </div>
-                      <div className="flex items-center gap-2">
-                        <div className="rounded-md bg-blue-50 p-1.5 text-blue-500">
-                          <Droplets className="h-4 w-4" />
-                        </div>
-                        <span className="text-lg font-bold tabular-nums">
-                          {data.humidity}
-                          <span className="text-xs font-normal text-muted-foreground">
-                            %
+                      <div className="flex flex-col">
+                        <div className="flex items-center gap-2">
+                          <div className="rounded-md bg-blue-50 p-1.5 text-blue-500">
+                            <Droplets className="h-4 w-4" />
+                          </div>
+                          <span className="text-lg font-bold tabular-nums">
+                            {data.humidity}
+                            <span className="text-xs font-normal text-muted-foreground">
+                              %
+                            </span>
                           </span>
-                        </span>
+                        </div>
+                        {avgData && (
+                          <span className="text-[10px] text-muted-foreground mt-1 ml-8">
+                            Moy: {avgData.humidity.toFixed(1)}%
+                          </span>
+                        )}
                       </div>
                     </div>
                   ) : (
