@@ -43,10 +43,14 @@ export async function GET(request: Request) {
     data?.forEach((r) => {
       const ts = new Date(r.created_at).getTime();
       const key = Math.round(ts / 1000) * 1000;
+      const dateObj = new Date(key);
+      // Adjust to UTC+1 for Algeria (Université Béchar)
+      const localTime = new Date(dateObj.getTime() + 3600000);
+
       if (!grouped[key]) {
         grouped[key] = {
-          date: format(new Date(key), "yyyy-MM-dd"),
-          time: format(new Date(key), "HH:mm:ss"),
+          date: format(localTime, "yyyy-MM-dd"),
+          time: format(localTime, "HH:mm:ss"),
           timestamp: key,
         };
       }

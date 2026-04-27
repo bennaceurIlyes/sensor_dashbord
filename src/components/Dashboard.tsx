@@ -93,7 +93,13 @@ export default function Dashboard() {
       if (!res.ok) throw new Error("Fetch error");
       const json = await res.json();
       if (json.data) {
-        setPaginatedData(json.data);
+        // Re-format date and time on client to match local timezone
+        const formattedData = json.data.map((row: PivotRow) => ({
+          ...row,
+          date: format(new Date(row.timestamp), "yyyy-MM-dd"),
+          time: format(new Date(row.timestamp), "HH:mm:ss"),
+        }));
+        setPaginatedData(formattedData);
         setTotalPages(json.totalPages || 1);
         setTotalRecords(json.totalRecords || 0);
       }
