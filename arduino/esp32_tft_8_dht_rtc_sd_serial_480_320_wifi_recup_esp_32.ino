@@ -9,8 +9,11 @@
 #include <WiFiClientSecure.h>
 
 // -------- WIFI --------
-const char* ssid = "Redmi Note 10";
-const char* password = "said2021.";
+////const char* ssid = "Redmi Note 10";
+////const char* password = "said2021.";
+
+const char* ssid = "fh_2c7070";
+const char* password = "NaouiSaid.";
 
 // -------- VERCEL API --------
 const char* serverUrl = "https://solordraying.vercel.app/api/readings";
