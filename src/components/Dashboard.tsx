@@ -122,6 +122,15 @@ export default function Dashboard() {
   const [monthLoading, setMonthLoading] = useState(false);
   const [monthError, setMonthError] = useState<string | null>(null);
 
+  /* ---------- Visible Sensors (Comparison Filters) ---------- */
+  const [visibleSensors, setVisibleSensors] = useState<string[]>([
+    "DHT1", "DHT2", "DHT3", "DHT4", "DHT5", "DHT6", "DHT7", "DHT8"
+  ]);
+
+  /* ---------- Database Clean Actions Confirmation States ---------- */
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
   /* ---------- Fetch: Real-time Live Log ---------- */
   const fetchPage = useCallback(async (page: number) => {
     setLoading(true);
@@ -254,6 +263,45 @@ export default function Dashboard() {
   /* ---------- CSV download ---------- */
   const downloadCSV = () => {
     window.location.href = '/api/data/export';
+  };
+
+  // Reset delete confirmation state after 5 seconds
+  useEffect(() => {
+    if (deleteConfirm) {
+      const timer = setTimeout(() => setDeleteConfirm(false), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [deleteConfirm]);
+
+  const handleDeleteAllData = async () => {
+    if (!deleteConfirm) {
+      setDeleteConfirm(true);
+      return;
+    }
+    setDeleting(true);
+    try {
+      const res = await fetch("/api/data", { method: "DELETE" });
+      if (!res.ok) throw new Error("Delete request failed");
+
+      setPaginatedData([]);
+      setTotalRecords(0);
+      setTotalPages(1);
+      setCurrentPage(1);
+      setAnomaliesCount(0);
+      setDeleteConfirm(false);
+      alert("Base de données réinitialisée avec succès ! Tous les relevés ont été supprimés.");
+      
+      // Re-trigger visual analytics refreshes
+      fetchPage(1);
+      fetchRangeAnalytics(rangeStart, rangeEnd);
+      fetchDayAnalytics(selectedDate);
+      fetchMonthAnalytics(selectedMonth);
+    } catch (err) {
+      console.error(err);
+      alert("Impossible de réinitialiser la base de données.");
+    } finally {
+      setDeleting(false);
+    }
   };
 
   /* ---------- Derived data (Current Page) ---------- */
@@ -479,6 +527,67 @@ export default function Dashboard() {
                 </CardContent>
               </Card>
 
+              {/* INTERACTIVE SENSOR COMPARISON FILTER BAR */}
+              <Card className="border-slate-200 bg-white shadow-sm">
+                <CardContent className="py-4 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <h4 className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                      <Sliders className="h-4.5 w-4.5 text-orange-500" />
+                      Filtres de comparaison des capteurs (Graphiques)
+                    </h4>
+                    <p className="text-[11px] text-slate-500 leading-normal">
+                      Cochez ou décochez les capteurs ci-dessous pour filtrer et comparer leurs courbes en temps réel.
+                    </p>
+                  </div>
+                  
+                  <div className="flex flex-wrap items-center gap-2">
+                    {SENSORS.map((sensor) => {
+                      const isVisible = visibleSensors.includes(sensor);
+                      const color = SENSOR_COLORS[sensor];
+                      
+                      return (
+                        <button
+                          key={sensor}
+                          onClick={() => {
+                            if (isVisible) {
+                              if (visibleSensors.length > 1) {
+                                setVisibleSensors(visibleSensors.filter((s) => s !== sensor));
+                              }
+                            } else {
+                              setVisibleSensors([...visibleSensors, sensor]);
+                            }
+                          }}
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all duration-150 border cursor-pointer ${
+                            isVisible
+                              ? "bg-slate-50 shadow-sm border-slate-300 text-slate-800"
+                              : "bg-transparent border-slate-100 text-slate-400 hover:border-slate-250 hover:bg-slate-50/50"
+                          }`}
+                        >
+                          <span
+                            className={`h-2.5 w-2.5 rounded-full border border-white transition-all duration-150 ${
+                              isVisible ? "opacity-100 scale-100" : "opacity-30 scale-75"
+                            }`}
+                            style={{ backgroundColor: isVisible ? color : "#94a3b8" }}
+                          />
+                          {sensor}
+                        </button>
+                      );
+                    })}
+
+                    <div className="h-5 w-[1px] bg-slate-200 mx-1 hidden sm:block" />
+
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setVisibleSensors([...SENSORS])}
+                      className="text-[10px] font-extrabold uppercase text-orange-600 hover:text-orange-700 hover:bg-orange-50 px-2 h-7 cursor-pointer"
+                    >
+                      Tout afficher
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
               {/* SECTION A: DATE RANGE GRAPH (DAYS NOT SECONDS) */}
               <div className="space-y-4">
                 <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
@@ -556,7 +665,7 @@ export default function Dashboard() {
                               <YAxis tick={{ fontSize: 10 }} stroke="#94a3b8" domain={["auto", "auto"]} unit="°C" />
                               <Tooltip contentStyle={{ backgroundColor: "rgba(15, 23, 42, 0.95)", borderRadius: "8px", border: "none", color: "#f8fafc", fontSize: "11px" }} />
                               <Legend wrapperStyle={{ fontSize: "10px", paddingTop: "8px" }} iconType="circle" />
-                              {SENSORS.map((s) => (
+                              {SENSORS.filter((s) => visibleSensors.includes(s)).map((s) => (
                                 <Line key={s} type="monotone" dataKey={`${s}_temp`} name={s} stroke={SENSOR_COLORS[s]} strokeWidth={2} dot={{ r: 2 }} activeDot={{ r: 4 }} connectNulls />
                               ))}
                             </LineChart>
@@ -597,7 +706,7 @@ export default function Dashboard() {
                               <YAxis tick={{ fontSize: 10 }} stroke="#94a3b8" domain={["auto", "auto"]} unit="%" />
                               <Tooltip contentStyle={{ backgroundColor: "rgba(15, 23, 42, 0.95)", borderRadius: "8px", border: "none", color: "#f8fafc", fontSize: "11px" }} />
                               <Legend wrapperStyle={{ fontSize: "10px", paddingTop: "8px" }} iconType="circle" />
-                              {SENSORS.map((s) => (
+                              {SENSORS.filter((s) => visibleSensors.includes(s)).map((s) => (
                                 <Line key={s} type="monotone" dataKey={`${s}_hum`} name={s} stroke={SENSOR_COLORS[s]} strokeWidth={2} dot={{ r: 2 }} activeDot={{ r: 4 }} connectNulls />
                               ))}
                             </LineChart>
@@ -666,7 +775,7 @@ export default function Dashboard() {
                               <YAxis tick={{ fontSize: 10 }} stroke="#94a3b8" domain={["auto", "auto"]} unit="°C" />
                               <Tooltip contentStyle={{ backgroundColor: "rgba(15, 23, 42, 0.95)", borderRadius: "8px", border: "none", color: "#f8fafc", fontSize: "11px" }} />
                               <Legend wrapperStyle={{ fontSize: "10px", paddingTop: "8px" }} iconType="circle" />
-                              {SENSORS.map((s) => (
+                              {SENSORS.filter((s) => visibleSensors.includes(s)).map((s) => (
                                 <Line key={s} type="monotone" dataKey={`${s}_temp`} name={s} stroke={SENSOR_COLORS[s]} strokeWidth={1.8} dot={false} activeDot={{ r: 4 }} connectNulls />
                               ))}
                             </LineChart>
@@ -694,7 +803,7 @@ export default function Dashboard() {
                               <YAxis tick={{ fontSize: 10 }} stroke="#94a3b8" domain={["auto", "auto"]} unit="%" />
                               <Tooltip contentStyle={{ backgroundColor: "rgba(15, 23, 42, 0.95)", borderRadius: "8px", border: "none", color: "#f8fafc", fontSize: "11px" }} />
                               <Legend wrapperStyle={{ fontSize: "10px", paddingTop: "8px" }} iconType="circle" />
-                              {SENSORS.map((s) => (
+                              {SENSORS.filter((s) => visibleSensors.includes(s)).map((s) => (
                                 <Line key={s} type="monotone" dataKey={`${s}_hum`} name={s} stroke={SENSOR_COLORS[s]} strokeWidth={1.8} dot={false} activeDot={{ r: 4 }} connectNulls />
                               ))}
                             </LineChart>
@@ -769,7 +878,7 @@ export default function Dashboard() {
                               <YAxis tick={{ fontSize: 10 }} stroke="#94a3b8" domain={["auto", "auto"]} unit="°C" />
                               <Tooltip contentStyle={{ backgroundColor: "rgba(15, 23, 42, 0.95)", borderRadius: "8px", border: "none", color: "#f8fafc", fontSize: "11px" }} />
                               <Legend wrapperStyle={{ fontSize: "10px", paddingTop: "8px" }} iconType="circle" />
-                              {SENSORS.map((s) => (
+                              {SENSORS.filter((s) => visibleSensors.includes(s)).map((s) => (
                                 <Line key={s} type="monotone" dataKey={`${s}_temp`} name={s} stroke={SENSOR_COLORS[s]} strokeWidth={2} dot={{ r: 2 }} activeDot={{ r: 4 }} connectNulls />
                               ))}
                             </LineChart>
@@ -803,7 +912,7 @@ export default function Dashboard() {
                               <YAxis tick={{ fontSize: 10 }} stroke="#94a3b8" domain={["auto", "auto"]} unit="%" />
                               <Tooltip contentStyle={{ backgroundColor: "rgba(15, 23, 42, 0.95)", borderRadius: "8px", border: "none", color: "#f8fafc", fontSize: "11px" }} />
                               <Legend wrapperStyle={{ fontSize: "10px", paddingTop: "8px" }} iconType="circle" />
-                              {SENSORS.map((s) => (
+                              {SENSORS.filter((s) => visibleSensors.includes(s)).map((s) => (
                                 <Line key={s} type="monotone" dataKey={`${s}_hum`} name={s} stroke={SENSOR_COLORS[s]} strokeWidth={2} dot={{ r: 2 }} activeDot={{ r: 4 }} connectNulls />
                               ))}
                             </LineChart>
@@ -823,7 +932,7 @@ export default function Dashboard() {
           {activeView === "logs" && (
             <div className="space-y-6 animate-fade-in">
               {/* Split Section */}
-              <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-4">
                 {/* Academic Context */}
                 <Card className="border-slate-200 bg-white shadow-sm md:col-span-2">
                   <CardHeader className="pb-2">
@@ -861,10 +970,46 @@ export default function Dashboard() {
                     <Button
                       onClick={downloadCSV}
                       variant="default"
-                      className="w-full gap-2 bg-green-600 hover:bg-green-700 text-white font-bold text-xs uppercase"
+                      className="w-full gap-2 bg-green-600 hover:bg-green-700 text-white font-bold text-xs uppercase cursor-pointer"
                     >
                       <Download className="h-4 w-4" />
                       Télécharger Excel (CSV)
+                    </Button>
+                  </CardContent>
+                </Card>
+
+                {/* Administration / Réinitialisation */}
+                <Card className="border-slate-200 bg-white shadow-sm flex flex-col justify-between overflow-hidden relative">
+                  <div className="absolute top-0 left-0 w-full h-[4px] bg-red-500" />
+                  <CardHeader className="pb-1 pt-4">
+                    <CardTitle className="text-xs font-bold uppercase tracking-wider text-red-600 flex items-center gap-1.5">
+                      <AlertTriangle className="h-4 w-4 text-red-500 animate-pulse" />
+                      Maintenance Système
+                    </CardTitle>
+                    <CardDescription className="text-slate-500 text-[10px] uppercase font-mono">
+                      Réinitialisation
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="pb-4 space-y-4 flex-1 flex flex-col justify-between pt-2">
+                    <p className="text-[11px] text-slate-500 leading-normal">
+                      Supprimez tous les enregistrements de la base pour réinitialiser le séchoir solaire expérimental (nouvelle campagne).
+                    </p>
+                    <Button
+                      onClick={handleDeleteAllData}
+                      disabled={deleting}
+                      variant="outline"
+                      className={`w-full gap-2 font-bold text-xs uppercase cursor-pointer border transition-all duration-300 ${
+                        deleteConfirm
+                          ? "bg-red-50 border-red-300 text-red-600 hover:bg-red-100"
+                          : "border-red-200 text-red-500 hover:bg-red-50"
+                      }`}
+                    >
+                      <AlertTriangle className="h-4 w-4" />
+                      {deleting
+                        ? "Suppression..."
+                        : deleteConfirm
+                        ? "Confirmer ?"
+                        : "Réinitialiser les données"}
                     </Button>
                   </CardContent>
                 </Card>

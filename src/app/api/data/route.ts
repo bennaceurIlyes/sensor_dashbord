@@ -70,3 +70,22 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
+
+export async function DELETE(request: Request) {
+  try {
+    const supabaseAdmin = getServiceSupabase();
+    // To execute a delete on Supabase without matching a single row,
+    // we use a .neq('id', 0) filter, which matches and safely deletes all records.
+    const { error } = await supabaseAdmin
+      .from('sensor_readings')
+      .delete()
+      .neq('id', 0);
+
+    if (error) throw error;
+
+    return NextResponse.json({ success: true, message: "Toutes les données ont été supprimées avec succès." });
+  } catch (err: any) {
+    console.error("Database Delete Error:", err);
+    return NextResponse.json({ error: err.message || 'Internal Server Error' }, { status: 500 });
+  }
+}
