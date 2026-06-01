@@ -29,11 +29,9 @@ import {
   Database,
   Info,
   Sliders,
-  TrendingDown,
   FileText,
   AlertTriangle,
-  ShieldCheck,
-  CheckCircle
+  ShieldCheck
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -278,33 +276,6 @@ export default function Dashboard() {
     });
   }
 
-  /* ---------- Thermodynamic color interpolation mapping helper ---------- */
-  const getChamberColor = (temp: number | undefined) => {
-    if (temp === undefined) return "rgba(148, 163, 184, 0.05)";
-    const minT = 20;
-    const maxT = 60;
-    const t = Math.min(Math.max(temp, minT), maxT);
-    const ratio = (t - minT) / (maxT - minT);
-    const hue = 210 - ratio * 195;
-    return `hsla(${hue}, 85%, 50%, 0.12)`;
-  };
-
-  const getChamberBorderColor = (temp: number | undefined) => {
-    if (temp === undefined) return "rgba(148, 163, 184, 0.15)";
-    const minT = 20;
-    const maxT = 60;
-    const t = Math.min(Math.max(temp, minT), maxT);
-    const ratio = (t - minT) / (maxT - minT);
-    const hue = 210 - ratio * 195;
-    return `hsla(${hue}, 85%, 50%, 0.35)`;
-  };
-
-  const getSensorHealthRating = (temp: number | undefined) => {
-    if (temp === undefined) return "Câblage Déconnecté";
-    if (temp > 45) return "Opérationnel (Actif)";
-    return "Opérationnel (Veille)";
-  };
-
   // Pagination controls
   const getPageNumbers = () => {
     const pages = [];
@@ -325,16 +296,16 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-slate-50/70 text-slate-900 flex flex-col md:flex-row font-sans">
       
-      {/* ──── Left Sidebar Navigation ──── */}
-      <aside className="w-full md:w-64 bg-slate-900 text-slate-100 flex flex-col justify-between p-5 border-r border-slate-800 md:h-screen md:sticky md:top-0 shadow-md">
+      {/* ──── Left Sidebar Navigation (LIGHT THEME) ──── */}
+      <aside className="w-full md:w-64 bg-white text-slate-800 flex flex-col justify-between p-5 border-r border-slate-200 md:h-screen md:sticky md:top-0 shadow-sm">
         <div className="space-y-6">
           {/* Top Brand Identity */}
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-600/10 text-orange-400 border border-orange-500/20">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-600/10 text-orange-600 border border-orange-200 shadow-sm">
               <Sun className="h-5.5 w-5.5 stroke-[1.8]" />
             </div>
             <div>
-              <h1 className="text-sm font-extrabold tracking-wider uppercase text-white leading-none">
+              <h1 className="text-sm font-extrabold tracking-wider uppercase text-slate-900 leading-none">
                 Séchoir Solaire
               </h1>
               <span className="text-[10px] text-slate-400 font-medium tracking-tight">
@@ -343,16 +314,16 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <Separator className="bg-slate-800" />
+          <Separator className="bg-slate-200" />
 
           {/* Operational Signal Badge */}
           <div className="space-y-2">
             <Badge
-              variant={activeSensors > 0 ? "default" : "destructive"}
-              className={`w-full gap-1.5 text-xs font-semibold py-1.5 px-3 flex justify-center items-center shadow-inner rounded-lg ${
+              variant="outline"
+              className={`w-full gap-1.5 text-xs font-extrabold py-2 px-3 flex justify-center items-center shadow-sm rounded-lg border ${
                 activeSensors > 0
-                  ? "bg-emerald-600 hover:bg-emerald-600"
-                  : "bg-red-650"
+                  ? "bg-emerald-55/80 text-emerald-700 border-emerald-200/80"
+                  : "bg-red-50 text-red-700 border-red-200"
               }`}
             >
               {activeSensors > 0 ? (
@@ -368,10 +339,10 @@ export default function Dashboard() {
           <nav className="space-y-1.5">
             <button
               onClick={() => setActiveView("analyse")}
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-150 ${
+              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-150 border cursor-pointer ${
                 activeView === "analyse"
-                  ? "bg-orange-600 text-white shadow-md hover:bg-orange-700"
-                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/40"
+                  ? "bg-orange-50 border-orange-200/80 text-orange-600 shadow-sm"
+                  : "bg-transparent border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-100/50"
               }`}
             >
               <TrendingUp className="h-4.5 w-4.5" />
@@ -380,10 +351,10 @@ export default function Dashboard() {
             
             <button
               onClick={() => setActiveView("logs")}
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-150 ${
+              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-150 border cursor-pointer ${
                 activeView === "logs"
-                  ? "bg-orange-600 text-white shadow-md hover:bg-orange-700"
-                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/40"
+                  ? "bg-orange-50 border-orange-200/80 text-orange-600 shadow-sm"
+                  : "bg-transparent border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-100/50"
               }`}
             >
               <Database className="h-4.5 w-4.5" />
@@ -393,7 +364,7 @@ export default function Dashboard() {
         </div>
 
         {/* Sidebar Footer */}
-        <div className="pt-4 border-t border-slate-800 text-[10px] text-slate-500 font-medium">
+        <div className="pt-4 border-t border-slate-200 text-[10px] text-slate-400 font-semibold leading-relaxed">
           Université Béchar © {new Date().getFullYear()}
           <br />
           Dépt de Physique Énergétique
@@ -404,14 +375,14 @@ export default function Dashboard() {
       <div className="flex-1 flex flex-col min-h-screen">
         
         {/* Right Header Diagnostics */}
-        <header className="sticky top-0 z-20 bg-white/95 backdrop-blur border-b border-slate-200 py-3 px-6 flex flex-col sm:flex-row justify-between items-center gap-3 shadow-sm">
+        <header className="sticky top-0 z-20 bg-white border-b border-slate-200 py-3 px-6 flex flex-col sm:flex-row justify-between items-center gap-3 shadow-sm">
           <div>
             <h2 className="text-sm font-black uppercase tracking-wider text-slate-800 flex items-center gap-2">
               <Activity className="h-4 w-4 text-orange-500 animate-pulse" />
               {activeView === "analyse" ? "Espace d'Analyse Thermodynamique" : "Visualisation de Base de Données"}
             </h2>
             <p className="text-[11px] text-slate-400 leading-none mt-1 font-medium">
-              Suivi et cartographie thermique fine en direct • Capteurs DHT22
+              Suivi et cartographie thermique en direct • Capteurs DHT22
             </p>
           </div>
 
@@ -434,190 +405,79 @@ export default function Dashboard() {
         <div className="flex-1 p-6 space-y-6">
           
           {/* ========================================== */}
-          {/* PAGE 1: TELEMETRY ANALYSIS (activeView === "analyse") */}
+          {/* PAGE 1: TELEMETRY ANALYSIS                 */}
           {/* ========================================== */}
           {activeView === "analyse" && (
             <div className="space-y-6 animate-fade-in">
-              {/* Grid 2D Chamber Map + Live Probes */}
-              <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-                {/* Convection 2D grid map */}
-                <Card className="border-slate-200 bg-white shadow-sm flex flex-col justify-between">
-                  <CardHeader className="pb-1.5">
-                    <CardTitle className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-                      <Sun className="h-4.5 w-4.5 text-orange-500" />
-                      Chambre Thermique 2D (Convection Map)
-                    </CardTitle>
-                    <CardDescription className="text-[11px] leading-relaxed">
-                      Cartographie physique du gradient de température dans le séchoir.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="flex-1 flex flex-col justify-center items-center py-4 px-3">
-                    <div className="w-full max-w-[280px] border border-slate-200 rounded-lg p-2.5 bg-slate-50/50 flex flex-col gap-2 relative">
-                      <div className="flex items-center justify-between text-[9px] text-slate-400 font-bold uppercase tracking-wider px-1">
-                        <span>Intake Collecteur (Air Chaud)</span>
-                        <TrendingDown className="h-3 w-3 text-red-500 rotate-180 animate-bounce" />
-                      </div>
+              {/* EIGHT SQUARES TELEMETRY GRID */}
+              <Card className="border-slate-200 bg-white shadow-sm">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                    <Sliders className="h-4.5 w-4.5 text-orange-500" />
+                    Relevés Physiques en Direct (DHT1 à DHT8)
+                  </CardTitle>
+                  <CardDescription className="text-[11px]">
+                    Données thermiques et hygrométriques acquises en temps réel par les capteurs physiques.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="pt-2">
+                  <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                    {SENSORS.map((sensor) => {
+                      const data = latestReadings[sensor];
+                      const color = SENSOR_COLORS[sensor];
                       
-                      <div className="grid grid-cols-3 gap-2">
-                        {/* Upper Chamber */}
-                        <div 
-                          className="rounded border p-2 flex flex-col justify-center items-center transition-all duration-300 shadow-sm hover:scale-105"
-                          style={{
-                            backgroundColor: getChamberColor(latestReadings["DHT1"]?.temperature),
-                            borderColor: getChamberBorderColor(latestReadings["DHT1"]?.temperature)
-                          }}
+                      return (
+                        <div
+                          key={sensor}
+                          className="border border-slate-200/80 rounded-xl p-4 bg-white transition-all duration-200 hover:scale-[1.02] hover:shadow-md flex flex-col justify-between h-[120px] relative overflow-hidden"
                         >
-                          <span className="text-[9px] text-slate-400 font-bold uppercase">DHT1</span>
-                          <span className="text-xs font-black tabular-nums">{latestReadings["DHT1"] ? `${latestReadings["DHT1"].temperature.toFixed(1)}°` : "—"}</span>
-                        </div>
-                        <div 
-                          className="rounded border p-2 flex flex-col justify-center items-center transition-all duration-300 shadow-sm hover:scale-105"
-                          style={{
-                            backgroundColor: getChamberColor(latestReadings["DHT2"]?.temperature),
-                            borderColor: getChamberBorderColor(latestReadings["DHT2"]?.temperature)
-                          }}
-                        >
-                          <span className="text-[9px] text-slate-400 font-bold uppercase">DHT2</span>
-                          <span className="text-xs font-black tabular-nums">{latestReadings["DHT2"] ? `${latestReadings["DHT2"].temperature.toFixed(1)}°` : "—"}</span>
-                        </div>
-                        <div 
-                          className="rounded border p-2 flex flex-col justify-center items-center transition-all duration-300 shadow-sm hover:scale-105"
-                          style={{
-                            backgroundColor: getChamberColor(latestReadings["DHT3"]?.temperature),
-                            borderColor: getChamberBorderColor(latestReadings["DHT3"]?.temperature)
-                          }}
-                        >
-                          <span className="text-[9px] text-slate-400 font-bold uppercase">DHT3</span>
-                          <span className="text-xs font-black tabular-nums">{latestReadings["DHT3"] ? `${latestReadings["DHT3"].temperature.toFixed(1)}°` : "—"}</span>
-                        </div>
-
-                        {/* Mid Plateaus */}
-                        <div 
-                          className="rounded border p-2 flex flex-col justify-center items-center transition-all duration-300 shadow-sm hover:scale-105"
-                          style={{
-                            backgroundColor: getChamberColor(latestReadings["DHT4"]?.temperature),
-                            borderColor: getChamberBorderColor(latestReadings["DHT4"]?.temperature)
-                          }}
-                        >
-                          <span className="text-[9px] text-slate-400 font-bold uppercase">DHT4</span>
-                          <span className="text-xs font-black tabular-nums">{latestReadings["DHT4"] ? `${latestReadings["DHT4"].temperature.toFixed(1)}°` : "—"}</span>
-                        </div>
-                        <div 
-                          className="rounded border p-2 flex flex-col justify-center items-center transition-all duration-300 shadow-sm hover:scale-105"
-                          style={{
-                            backgroundColor: getChamberColor(latestReadings["DHT5"]?.temperature),
-                            borderColor: getChamberBorderColor(latestReadings["DHT5"]?.temperature)
-                          }}
-                        >
-                          <span className="text-[9px] text-slate-400 font-bold uppercase">DHT5</span>
-                          <span className="text-xs font-black tabular-nums">{latestReadings["DHT5"] ? `${latestReadings["DHT5"].temperature.toFixed(1)}°` : "—"}</span>
-                        </div>
-                        <div 
-                          className="rounded border p-2 flex flex-col justify-center items-center transition-all duration-300 shadow-sm hover:scale-105"
-                          style={{
-                            backgroundColor: getChamberColor(latestReadings["DHT6"]?.temperature),
-                            borderColor: getChamberBorderColor(latestReadings["DHT6"]?.temperature)
-                          }}
-                        >
-                          <span className="text-[9px] text-slate-400 font-bold uppercase">DHT6</span>
-                          <span className="text-xs font-black tabular-nums">{latestReadings["DHT6"] ? `${latestReadings["DHT6"].temperature.toFixed(1)}°` : "—"}</span>
-                        </div>
-
-                        {/* Lower Outflow */}
-                        <div 
-                          className="rounded border p-2 flex flex-col justify-center items-center transition-all duration-300 shadow-sm hover:scale-105"
-                          style={{
-                            backgroundColor: getChamberColor(latestReadings["DHT7"]?.temperature),
-                            borderColor: getChamberBorderColor(latestReadings["DHT7"]?.temperature)
-                          }}
-                        >
-                          <span className="text-[9px] text-slate-400 font-bold uppercase">DHT7</span>
-                          <span className="text-xs font-black tabular-nums">{latestReadings["DHT7"] ? `${latestReadings["DHT7"].temperature.toFixed(1)}°` : "—"}</span>
-                        </div>
-                        <div className="bg-transparent border-none" />
-                        <div 
-                          className="rounded border p-2 flex flex-col justify-center items-center transition-all duration-300 shadow-sm hover:scale-105"
-                          style={{
-                            backgroundColor: getChamberColor(latestReadings["DHT8"]?.temperature),
-                            borderColor: getChamberBorderColor(latestReadings["DHT8"]?.temperature)
-                          }}
-                        >
-                          <span className="text-[9px] text-slate-400 font-bold uppercase">DHT8</span>
-                          <span className="text-xs font-black tabular-nums">{latestReadings["DHT8"] ? `${latestReadings["DHT8"].temperature.toFixed(1)}°` : "—"}</span>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between text-[9px] text-slate-400 font-bold uppercase tracking-wider px-1 border-t pt-1 mt-1">
-                        <span>Sortie d'Air (Humide)</span>
-                        <TrendingDown className="h-3 w-3 text-blue-500 animate-bounce" />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Live Probes health parameters */}
-                <Card className="border-slate-200 bg-white shadow-sm lg:col-span-2">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-                      <Sliders className="h-4.5 w-4.5 text-orange-500" />
-                      DHT22 Live Telemetry Diagnostics (8 Capteurs)
-                    </CardTitle>
-                    <CardDescription className="text-[11px]">
-                      Données réelles lues par les sondes physiques.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="pt-2">
-                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                      {SENSORS.map((sensor) => {
-                        const data = latestReadings[sensor];
-                        const color = SENSOR_COLORS[sensor];
-                        const health = getSensorHealthRating(data?.temperature);
-                        
-                        return (
-                          <div
-                            key={sensor}
-                            className="group border border-slate-100 hover:border-slate-200 bg-slate-50/50 hover:bg-slate-100/50 p-2.5 rounded-lg transition-all duration-200 hover:scale-[1.02] flex flex-col justify-between"
-                          >
-                            <div className="flex items-center justify-between border-b pb-1.5 mb-1.5">
-                              <span className="text-[10px] font-black uppercase flex items-center gap-1">
-                                <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: color }} />
-                                {sensor}
-                              </span>
-                              {data && (
-                                <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 py-0.5 px-1.5 rounded-full">LIVE</span>
-                              )}
-                            </div>
-
-                            {data ? (
-                              <div className="space-y-1">
-                                <div className="flex items-center justify-between text-[11px]">
-                                  <span className="text-slate-400 font-medium">Temp:</span>
-                                  <span className="font-extrabold font-mono text-slate-800">
-                                    {data.temperature.toFixed(1)}°C
-                                  </span>
-                                </div>
-                                <div className="flex items-center justify-between text-[11px]">
-                                  <span className="text-slate-400 font-medium">Humid:</span>
-                                  <span className="font-extrabold font-mono text-slate-800">
-                                    {data.humidity.toFixed(1)}%
-                                  </span>
-                                </div>
-                                <span className="text-[8px] font-bold block leading-none pt-1 border-t uppercase text-slate-400">
-                                  {health}
-                                </span>
-                              </div>
-                            ) : (
-                              <div className="py-2 text-center text-red-500 font-bold uppercase text-[9px]">
-                                Déconnecté
-                              </div>
-                            )}
+                          {/* Color accent line */}
+                          <div className="absolute top-0 left-0 w-full h-[4px]" style={{ backgroundColor: color }} />
+                          
+                          {/* Sensor Title */}
+                          <div className="flex items-center gap-1.5 font-black uppercase text-xs text-slate-800">
+                            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: color }} />
+                            {sensor}
                           </div>
-                        );
-                      })}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
+
+                          {/* Metrics */}
+                          {data ? (
+                            <div className="grid grid-cols-2 gap-2 mt-1.5">
+                              {/* Temp */}
+                              <div className="flex flex-col">
+                                <span className="text-[9px] font-bold text-slate-400 uppercase leading-none">Température</span>
+                                <div className="flex items-center gap-0.5 mt-0.5">
+                                  <Thermometer className="h-4 w-4 text-orange-500" />
+                                  <span className="text-base font-black tracking-tight tabular-nums text-slate-800">
+                                    {data.temperature.toFixed(1)}
+                                    <span className="text-xs font-normal text-slate-400 ml-0.5">°C</span>
+                                  </span>
+                                </div>
+                              </div>
+                              
+                              {/* Humid */}
+                              <div className="flex flex-col border-l border-slate-100 pl-2">
+                                <span className="text-[9px] font-bold text-slate-400 uppercase leading-none">Humidité</span>
+                                <div className="flex items-center gap-0.5 mt-0.5">
+                                  <Droplets className="h-4 w-4 text-blue-500" />
+                                  <span className="text-base font-black tracking-tight tabular-nums text-slate-800">
+                                    {data.humidity.toFixed(1)}
+                                    <span className="text-xs font-normal text-slate-400 ml-0.5">%</span>
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="py-2 text-center text-red-500 font-bold uppercase text-[10px]">
+                              Déconnecté
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
 
               {/* SECTION A: DATE RANGE GRAPH (DAYS NOT SECONDS) */}
               <div className="space-y-4">
@@ -766,7 +626,7 @@ export default function Dashboard() {
                       type="date"
                       value={selectedDate}
                       onChange={(e) => setSelectedDate(e.target.value)}
-                      className="h-8 rounded-md border border-slate-250 bg-white px-2.5 py-1 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-orange-500 shadow-sm text-slate-800"
+                      className="h-8 rounded-md border border-slate-255 bg-white px-2.5 py-1 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-orange-500 shadow-sm text-slate-800"
                     />
                     <Button 
                       variant="outline" 
@@ -863,7 +723,7 @@ export default function Dashboard() {
                       type="month"
                       value={selectedMonth}
                       onChange={(e) => setSelectedMonth(e.target.value)}
-                      className="h-8 rounded-md border border-slate-250 bg-white px-2.5 py-1 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-orange-500 shadow-sm text-slate-800"
+                      className="h-8 rounded-md border border-slate-255 bg-white px-2.5 py-1 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-orange-500 shadow-sm text-slate-800"
                     />
                     <Button 
                       variant="outline" 
@@ -962,7 +822,7 @@ export default function Dashboard() {
           {/* ========================================== */}
           {activeView === "logs" && (
             <div className="space-y-6 animate-fade-in">
-              {/* Context + Universal Excel Exporter split */}
+              {/* Split Section */}
               <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
                 {/* Academic Context */}
                 <Card className="border-slate-200 bg-white shadow-sm md:col-span-2">
@@ -982,7 +842,7 @@ export default function Dashboard() {
                   </CardContent>
                 </Card>
 
-                {/* Database export trigger */}
+                {/* Exporter */}
                 <Card className="border-slate-200 bg-white shadow-sm flex flex-col justify-between overflow-hidden relative">
                   <div className="absolute top-0 left-0 w-full h-[4px] bg-green-500" />
                   <CardHeader className="pb-1 pt-4">
