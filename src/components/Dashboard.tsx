@@ -30,12 +30,10 @@ import {
   Info,
   Sliders,
   TrendingDown,
-  Gauge,
-  HelpCircle,
   FileText,
   AlertTriangle
 } from "lucide-react";
-import { format } from "date-fns";
+import { format, subDays } from "date-fns";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -90,7 +88,7 @@ export default function Dashboard() {
   /* ---------- Tab State ---------- */
   const [activeTab, setActiveTab] = useState<string>("realtime");
 
-  /* ---------- Real-Time / Explorer States ---------- */
+  /* ---------- Real-Time Logs / Explorer States ---------- */
   const [paginatedData, setPaginatedData] = useState<PivotRow[]>([]);
   const [totalRecords, setTotalRecords] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
@@ -99,8 +97,15 @@ export default function Dashboard() {
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
   const rowsPerPage = 50;
 
-  /* ---------- Daily Analytics States ---------- */
-  // Default study date is June 1st, 2026 (corresponds to current project timeframe)
+  /* ---------- Custom Date Range States (Day-by-Day Trends) ---------- */
+  const [rangeStart, setRangeStart] = useState<string>("2026-05-15");
+  const [rangeEnd, setRangeEnd] = useState<string>("2026-06-01");
+  const [rangeData, setRangeData] = useState<any[]>([]);
+  const [rangeSummary, setRangeSummary] = useState<any>(null);
+  const [rangeLoading, setRangeLoading] = useState(false);
+  const [rangeError, setRangeError] = useState<string | null>(null);
+
+  /* ---------- Daily Profile States ---------- */
   const [selectedDate, setSelectedDate] = useState<string>("2026-06-01");
   const [dayData, setDayData] = useState<any[]>([]);
   const [daySummary, setDaySummary] = useState<any>(null);
@@ -114,7 +119,7 @@ export default function Dashboard() {
   const [monthLoading, setMonthLoading] = useState(false);
   const [monthError, setMonthError] = useState<string | null>(null);
 
-  /* ---------- Fetch: Real-time Data ---------- */
+  /* ---------- Fetch: Real-time Live Log ---------- */
   const fetchPage = useCallback(async (page: number) => {
     setLoading(true);
     try {
@@ -150,6 +155,24 @@ export default function Dashboard() {
       setLastRefreshed(new Date());
     }
   }, [rowsPerPage]);
+
+  /* ---------- Fetch: Date Range Trends (Day-by-Day) ---------- */
+  const fetchRangeAnalytics = useCallback(async (start: string, end: string) => {
+    setRangeLoading(true);
+    setRangeError(null);
+    try {
+      const res = await fetch(`/api/analytics/range?start=${start}&end=${end}`);
+      if (!res.ok) throw new Error("Range fetch error");
+      const json = await res.json();
+      setRangeData(json.data || []);
+      setRangeSummary(json.summary || null);
+    } catch (err) {
+      console.error(err);
+      setRangeError("Impossible de charger les tendances physiques pour cette période.");
+    } finally {
+      setRangeLoading(false);
+    }
+  }, []);
 
   /* ---------- Fetch: Daily Analytics ---------- */
   const fetchDayAnalytics = useCallback(async (date: string) => {
@@ -188,15 +211,19 @@ export default function Dashboard() {
   }, []);
 
   /* ---------- Effects ---------- */
-  // Real-time fetcher
+  // Real-time polling
   useEffect(() => {
     fetchPage(currentPage);
-    // Realtime polling active every 30 seconds
     const id = setInterval(() => {
       fetchPage(currentPage);
     }, 30_000);
     return () => clearInterval(id);
   }, [fetchPage, currentPage]);
+
+  // Range analytics trigger
+  useEffect(() => {
+    fetchRangeAnalytics(rangeStart, rangeEnd);
+  }, [fetchRangeAnalytics, rangeStart, rangeEnd]);
 
   // Day analytics trigger
   useEffect(() => {
@@ -217,8 +244,7 @@ export default function Dashboard() {
     window.location.href = '/api/data/export';
   };
 
-  /* ---------- Derived data (Current Real-time Page) ---------- */
-  const chartData = [...paginatedData].reverse(); // Oldest to newest for charts
+  /* ---------- Derived data (Current Page) ---------- */
   const latestRow = paginatedData[0];
 
   const activeSensors = latestRow
@@ -279,7 +305,7 @@ export default function Dashboard() {
     }
   });
 
-  // Generate pagination buttons
+  // Pagination bounds
   const getPageNumbers = () => {
     const pages = [];
     const maxVisible = 5;
@@ -298,7 +324,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-slate-50/70 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans">
-      {/* ──── Header: Precise Scientific Identity ──── */}
+      {/* ──── Header ──── */}
       <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 dark:border-slate-800 dark:bg-slate-900/95 backdrop-blur shadow-sm">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3">
@@ -356,7 +382,7 @@ export default function Dashboard() {
                 className="gap-2 px-3 py-1.5 text-xs font-semibold transition-all data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900"
               >
                 <Activity className="h-3.5 w-3.5" />
-                Surveillance Directe
+                Surveillance & Tendances
               </TabsTrigger>
               <TabsTrigger
                 value="day"
@@ -382,82 +408,21 @@ export default function Dashboard() {
             </TabsList>
 
             <Badge variant="outline" className="hidden md:flex text-slate-400 font-mono text-[10px] uppercase border-slate-200 dark:border-slate-800">
-              Dispositif IoT: sechoir-solaire-esp32
+              Dispositif: sechoir-solaire-esp32
             </Badge>
           </div>
 
-          {/* ========================================== */}
-          {/* TAB 1: SURVEILLANCE DIRECTE (REALTIME)     */}
-          {/* ========================================== */}
+          {/* ======================================================== */}
+          {/* TAB 1: SURVEILLANCE & TENDANCES (LIVE CARDS + RANGE GRAPH) */}
+          {/* ======================================================== */}
           <TabsContent value="realtime" className="space-y-6 outline-none focus:ring-0">
-            {/* ──── Summary Strip ──── */}
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-              <Card className="shadow-sm border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
-                <CardContent className="flex items-center gap-3 pt-5 pb-5">
-                  <div className="rounded-lg bg-orange-100 dark:bg-orange-500/10 p-2.5 text-orange-600 dark:text-orange-400">
-                    <Thermometer className="h-5 w-5 stroke-[1.8]" />
-                  </div>
-                  <div>
-                    <p className="text-[11px] font-medium text-slate-500">Temp. Moyenne (Page)</p>
-                    <p className="text-xl font-extrabold tracking-tight tabular-nums">
-                      {avgTemp > 0 ? avgTemp.toFixed(1) : "—"}
-                      <span className="text-xs font-semibold text-slate-400 ml-0.5">°C</span>
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="shadow-sm border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
-                <CardContent className="flex items-center gap-3 pt-5 pb-5">
-                  <div className="rounded-lg bg-blue-100 dark:bg-blue-500/10 p-2.5 text-blue-600 dark:text-blue-400">
-                    <Droplets className="h-5 w-5 stroke-[1.8]" />
-                  </div>
-                  <div>
-                    <p className="text-[11px] font-medium text-slate-500">Hum. Moyenne (Page)</p>
-                    <p className="text-xl font-extrabold tracking-tight tabular-nums">
-                      {avgHum > 0 ? avgHum.toFixed(1) : "—"}
-                      <span className="text-xs font-semibold text-slate-400 ml-0.5">%</span>
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="shadow-sm border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
-                <CardContent className="flex items-center gap-3 pt-5 pb-5">
-                  <div className="rounded-lg bg-emerald-100 dark:bg-emerald-500/10 p-2.5 text-emerald-600 dark:text-emerald-400">
-                    <Activity className="h-5 w-5 stroke-[1.8]" />
-                  </div>
-                  <div>
-                    <p className="text-[11px] font-medium text-slate-500">Capteurs Actifs</p>
-                    <p className="text-xl font-extrabold tracking-tight tabular-nums">
-                      {activeSensors}
-                      <span className="text-xs font-semibold text-slate-400 ml-0.5">/8</span>
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="shadow-sm border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
-                <CardContent className="flex items-center gap-3 pt-5 pb-5">
-                  <div className="rounded-lg bg-indigo-100 dark:bg-indigo-500/10 p-2.5 text-indigo-600 dark:text-indigo-400">
-                    <Clock className="h-5 w-5 stroke-[1.8]" />
-                  </div>
-                  <div>
-                    <p className="text-[11px] font-medium text-slate-500">Lectures Globales</p>
-                    <p className="text-xl font-extrabold tracking-tight tabular-nums">
-                      {totalRecords}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* ──── Physical Sensor Cards Grid ──── */}
+            
+            {/* ──── Physical Sensor Cards Grid (LIVE STATUS) ──── */}
             <div>
               <div className="flex items-center gap-2 mb-3">
                 <Sliders className="h-4 w-4 text-slate-400" />
-                <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                  Cartographie Physique Actuelle (8 DHT22)
+                <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  Cartographie Physique Actuelle (DHT22 en Direct)
                 </h2>
               </div>
               
@@ -470,7 +435,7 @@ export default function Dashboard() {
                   return (
                     <Card
                       key={sensor}
-                      className="group border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden relative"
+                      className="group border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden relative shadow-sm"
                     >
                       <div 
                         className="absolute top-0 left-0 w-full h-[3px]"
@@ -493,7 +458,6 @@ export default function Dashboard() {
                       <CardContent className="pb-3.5">
                         {data ? (
                           <div className="space-y-2">
-                            {/* Values */}
                             <div className="grid grid-cols-2 gap-2">
                               <div>
                                 <span className="text-[9px] text-slate-400 block uppercase font-medium">Température</span>
@@ -517,7 +481,7 @@ export default function Dashboard() {
                               </div>
                             </div>
 
-                            {/* Precise Gauge Indicator */}
+                            {/* Range indicator visual gauge */}
                             <div className="space-y-1">
                               <div className="flex justify-between text-[9px] text-slate-400 font-mono">
                                 <span>15°C</span>
@@ -534,16 +498,6 @@ export default function Dashboard() {
                                 />
                               </div>
                             </div>
-
-                            {/* Average reference comparison */}
-                            {avgData && (
-                              <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1 border-t border-slate-100 dark:border-slate-800/80">
-                                <span>Moy. Courbe:</span>
-                                <span className="font-semibold font-mono">
-                                  {avgData.temperature.toFixed(1)}°C | {avgData.humidity.toFixed(1)}%
-                                </span>
-                              </div>
-                            )}
                           </div>
                         ) : (
                           <div className="py-5 text-center flex flex-col items-center justify-center gap-1">
@@ -558,122 +512,257 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* ──── Realtime Charts ──── */}
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              {/* Temperature Chart */}
-              <Card className="border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                    <Thermometer className="h-4.5 w-4.5 text-orange-500" />
-                    Profil Thermique Actuel (°C)
-                  </CardTitle>
-                  <CardDescription className="text-xs">
-                    Évolution temporelle fine de la température sur la page active de mesure
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="pt-2">
-                  <div className="h-[280px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={chartData} margin={{ left: -10, right: 10, bottom: 0, top: 5 }}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(148, 163, 184, 0.12)" />
-                        <XAxis dataKey="time" tick={{ fontSize: 10 }} tickMargin={8} stroke="#94a3b8" />
-                        <YAxis tick={{ fontSize: 10 }} stroke="#94a3b8" domain={["auto", "auto"]} unit="°C" />
-                        <Tooltip
-                          contentStyle={{
-                            backgroundColor: "rgba(15, 23, 42, 0.95)",
-                            borderRadius: "8px",
-                            border: "none",
-                            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
-                            fontSize: "11px",
-                            color: "#f8fafc"
-                          }}
-                        />
-                        <Legend wrapperStyle={{ fontSize: "10px", paddingTop: "10px" }} iconType="circle" />
-                        {SENSORS.map((s) => (
-                          <Line
-                            key={s}
-                            type="monotone"
-                            dataKey={`${s}_temp`}
-                            name={s}
-                            stroke={SENSOR_COLORS[s]}
-                            strokeWidth={1.8}
-                            dot={false}
-                            activeDot={{ r: 4 }}
-                            connectNulls
-                          />
-                        ))}
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Humidity Chart */}
-              <Card className="border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                    <Droplets className="h-4.5 w-4.5 text-blue-500" />
-                    Profil Hygrométrique Actuel (%)
-                  </CardTitle>
-                  <CardDescription className="text-xs">
-                    Évolution temporelle fine de l'humidité sur la page active de mesure
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="pt-2">
-                  <div className="h-[280px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={chartData} margin={{ left: -10, right: 10, bottom: 0, top: 5 }}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(148, 163, 184, 0.12)" />
-                        <XAxis dataKey="time" tick={{ fontSize: 10 }} tickMargin={8} stroke="#94a3b8" />
-                        <YAxis tick={{ fontSize: 10 }} stroke="#94a3b8" domain={["auto", "auto"]} unit="%" />
-                        <Tooltip
-                          contentStyle={{
-                            backgroundColor: "rgba(15, 23, 42, 0.95)",
-                            borderRadius: "8px",
-                            border: "none",
-                            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
-                            fontSize: "11px",
-                            color: "#f8fafc"
-                          }}
-                        />
-                        <Legend wrapperStyle={{ fontSize: "10px", paddingTop: "10px" }} iconType="circle" />
-                        {SENSORS.map((s) => (
-                          <Line
-                            key={s}
-                            type="monotone"
-                            dataKey={`${s}_hum`}
-                            name={s}
-                            stroke={SENSOR_COLORS[s]}
-                            strokeWidth={1.8}
-                            dot={false}
-                            activeDot={{ r: 4 }}
-                            connectNulls
-                          />
-                        ))}
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
+            {/* ──── DATES NOT SECONDS: Dynamic Range Selector Row ──── */}
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm mt-4">
+              <div>
+                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                  Profil Énergétique sur Période Personnalisée
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Définissez une plage de dates pour tracer les tendances quotidiennes moyennes (Courbes par <strong>Jours</strong>, pas par secondes).
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="outline" className="text-xs h-9 px-3 gap-1.5 border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/10 font-semibold uppercase text-slate-500">
+                  <Calendar className="h-3.5 w-3.5 text-orange-500" />
+                  Période:
+                </Badge>
+                <input
+                  type="date"
+                  value={rangeStart}
+                  onChange={(e) => setRangeStart(e.target.value)}
+                  className="h-9 rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-2 py-1.5 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-orange-500 shadow-sm text-slate-800 dark:text-slate-200"
+                />
+                <span className="text-xs text-slate-400 font-semibold">à</span>
+                <input
+                  type="date"
+                  value={rangeEnd}
+                  onChange={(e) => setRangeEnd(e.target.value)}
+                  className="h-9 rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-2 py-1.5 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-orange-500 shadow-sm text-slate-800 dark:text-slate-200"
+                />
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-9 w-9 border-slate-200 dark:border-slate-800 hover:bg-slate-50"
+                  onClick={() => fetchRangeAnalytics(rangeStart, rangeEnd)}
+                  disabled={rangeLoading}
+                >
+                  <RefreshCw className={`h-4 w-4 ${rangeLoading ? "animate-spin" : ""}`} />
+                </Button>
+              </div>
             </div>
+
+            {/* ──── Range Analytics Content ──── */}
+            {rangeLoading ? (
+              <div className="py-20 text-center flex flex-col items-center justify-center gap-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                <RefreshCw className="h-8 w-8 animate-spin text-orange-500" />
+                <p className="text-sm font-medium text-slate-500">Calcul et regroupement par jours des relevés...</p>
+              </div>
+            ) : rangeError ? (
+              <div className="py-20 text-center border rounded-xl bg-red-50/20 dark:bg-red-950/10 border-red-200/50 flex flex-col items-center justify-center gap-2">
+                <AlertTriangle className="h-6 w-6 text-red-500" />
+                <p className="text-sm font-bold text-red-600 dark:text-red-400">{rangeError}</p>
+                <Button size="sm" variant="outline" className="mt-2" onClick={() => fetchRangeAnalytics(rangeStart, rangeEnd)}>Réessayer</Button>
+              </div>
+            ) : rangeData.length === 0 ? (
+              <div className="py-20 text-center border border-dashed rounded-xl flex flex-col items-center justify-center gap-2 bg-slate-50/30">
+                <Info className="h-6 w-6 text-slate-400" />
+                <p className="text-sm font-bold text-slate-655">Aucun relevé trouvé pour cette période</p>
+                <p className="text-xs text-slate-400">Essayez une autre plage de dates.</p>
+              </div>
+            ) : (
+              <div className="space-y-6 animate-fade-in">
+                {/* Dynamically Recalculated Period Metrics */}
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                  <Card className="border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+                    <CardContent className="pt-4 pb-4">
+                      <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-wide">Moyenne Température (Période)</span>
+                      <p className="text-xl font-black tracking-tight tabular-nums text-slate-800 dark:text-slate-100 mt-1.5">
+                        {rangeSummary?.avgTemp !== null ? `${rangeSummary.avgTemp.toFixed(1)} °C` : "—"}
+                      </p>
+                      <p className="text-[10px] text-slate-400 mt-2 font-medium">
+                        Température moyenne calculée.
+                      </p>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+                    <CardContent className="pt-4 pb-4">
+                      <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-wide">Moyenne Humidité (Période)</span>
+                      <p className="text-xl font-black tracking-tight tabular-nums text-slate-800 dark:text-slate-100 mt-1.5">
+                        {rangeSummary?.avgHum !== null ? `${rangeSummary.avgHum.toFixed(1)} %` : "—"}
+                      </p>
+                      <p className="text-[10px] text-slate-400 mt-2 font-medium">
+                        Humidité moyenne relative.
+                      </p>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+                    <CardContent className="pt-4 pb-4">
+                      <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-wide">Pic Chaud Période</span>
+                      <p className="text-lg font-black tracking-tight tabular-nums text-orange-600 dark:text-orange-400 mt-1">
+                        {rangeSummary?.maxTemp !== null ? `${rangeSummary.maxTemp.toFixed(1)} °C` : "—"}
+                      </p>
+                      <p className="text-[10px] text-slate-450 dark:text-slate-450 mt-1.5 font-medium leading-normal bg-slate-50 dark:bg-slate-800/40 p-1.5 rounded border">
+                        Le: <span className="font-bold">{rangeSummary?.maxTempDate}</span>
+                        <br />
+                        Sur: <span className="font-bold">{rangeSummary?.maxTempSensor}</span>
+                      </p>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+                    <CardContent className="pt-4 pb-4">
+                      <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-wide">Jours de Séchage Actifs</span>
+                      <p className="text-lg font-black tracking-tight tabular-nums text-emerald-600 dark:text-emerald-400 mt-1">
+                        {rangeSummary?.activeOperationalDays !== null ? `${rangeSummary.activeOperationalDays} jours` : "—"}
+                      </p>
+                      <p className="text-[10px] text-slate-450 dark:text-slate-450 mt-1.5 font-medium leading-normal bg-slate-50 dark:bg-slate-800/40 p-1.5 rounded border">
+                        Moyenne quotidienne &gt; 35°C
+                        <br />
+                        Sur un total de <span className="font-bold">{rangeSummary?.totalActiveDays} jours</span> de mesure.
+                      </p>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Day-by-Day Historical Trend Charts */}
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                  {/* Temperature daily averages */}
+                  <Card className="border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                        <Thermometer className="h-4.5 w-4.5 text-red-500" />
+                        Évolution Thermique Quotidienne (Graphique en Jours)
+                      </CardTitle>
+                      <CardDescription className="text-xs">
+                        Moyenne globale journalière de température pour chacun des 8 capteurs DHT22
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="pt-2">
+                      <div className="h-[280px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={rangeData} margin={{ left: -10, right: 10, bottom: 0, top: 5 }}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(148, 163, 184, 0.12)" />
+                            <XAxis 
+                              dataKey="date" 
+                              tick={{ fontSize: 9 }} 
+                              tickMargin={8} 
+                              stroke="#94a3b8" 
+                              tickFormatter={(str) => {
+                                try { return str.substring(8, 10) + "/" + str.substring(5, 7); }
+                                catch(e) { return str; }
+                              }}
+                            />
+                            <YAxis tick={{ fontSize: 10 }} stroke="#94a3b8" domain={["auto", "auto"]} unit="°C" />
+                            <Tooltip
+                              contentStyle={{
+                                backgroundColor: "rgba(15, 23, 42, 0.95)",
+                                borderRadius: "8px",
+                                border: "none",
+                                boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
+                                fontSize: "11px",
+                                color: "#f8fafc"
+                              }}
+                            />
+                            <Legend wrapperStyle={{ fontSize: "10px", paddingTop: "10px" }} iconType="circle" />
+                            {SENSORS.map((s) => (
+                              <Line
+                                key={s}
+                                type="monotone"
+                                dataKey={`${s}_temp`}
+                                name={s}
+                                stroke={SENSOR_COLORS[s]}
+                                strokeWidth={2}
+                                dot={{ r: 2 }}
+                                activeDot={{ r: 4 }}
+                                connectNulls
+                              />
+                            ))}
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Humidity daily averages */}
+                  <Card className="border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                        <Droplets className="h-4.5 w-4.5 text-blue-500" />
+                        Évolution Hygrométrique Quotidienne (Graphique en Jours)
+                      </CardTitle>
+                      <CardDescription className="text-xs">
+                        Moyenne globale journalière d'humidité relative pour chacun des 8 capteurs
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="pt-2">
+                      <div className="h-[280px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={rangeData} margin={{ left: -10, right: 10, bottom: 0, top: 5 }}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(148, 163, 184, 0.12)" />
+                            <XAxis 
+                              dataKey="date" 
+                              tick={{ fontSize: 9 }} 
+                              tickMargin={8} 
+                              stroke="#94a3b8"
+                              tickFormatter={(str) => {
+                                try { return str.substring(8, 10) + "/" + str.substring(5, 7); }
+                                catch(e) { return str; }
+                              }}
+                            />
+                            <YAxis tick={{ fontSize: 10 }} stroke="#94a3b8" domain={["auto", "auto"]} unit="%" />
+                            <Tooltip
+                              contentStyle={{
+                                backgroundColor: "rgba(15, 23, 42, 0.95)",
+                                borderRadius: "8px",
+                                border: "none",
+                                boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
+                                fontSize: "11px",
+                                color: "#f8fafc"
+                              }}
+                            />
+                            <Legend wrapperStyle={{ fontSize: "10px", paddingTop: "10px" }} iconType="circle" />
+                            {SENSORS.map((s) => (
+                              <Line
+                                key={s}
+                                type="monotone"
+                                dataKey={`${s}_hum`}
+                                name={s}
+                                stroke={SENSOR_COLORS[s]}
+                                strokeWidth={2}
+                                dot={{ r: 2 }}
+                                activeDot={{ r: 4 }}
+                                connectNulls
+                              />
+                            ))}
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+            )}
           </TabsContent>
 
-          {/* ========================================== */}
-          {/* TAB 2: PROFIL JOURNALIER (DAILY ANALYTICS) */}
-          {/* ========================================== */}
+          {/* ========================================================= */}
+          {/* TAB 2: PROFIL JOURNALIER (DAILY PHYSICS PROFILE compilations) */}
+          {/* ========================================================= */}
           <TabsContent value="day" className="space-y-6 outline-none focus:ring-0">
             {/* Study Selector Row */}
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm animate-fade-in">
               <div>
                 <h3 className="text-sm font-bold uppercase tracking-wider text-slate-850">
-                  Profil Physique & Analyse Thermique Fine
+                  Profil Physique Thermique Quotidien
                 </h3>
-                <p className="text-xs text-slate-450 dark:text-slate-400">
-                  Visualisez les courbes de toute une journée à intervalles de 10 min. Calculez les déséquilibres de distribution de chaleur (Gradients).
+                <p className="text-xs text-slate-500">
+                  Visualisez les courbes de température de toute une journée à intervalles fins de 10 min.
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                <Badge variant="outline" className="text-xs h-9 px-3 gap-1.5 border-slate-200 dark:border-slate-850 bg-slate-50/50 dark:bg-slate-800/20 font-semibold uppercase text-slate-500">
+                <Badge variant="outline" className="text-xs h-9 px-3 gap-1.5 border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/10 font-semibold uppercase text-slate-500">
                   <Calendar className="h-3.5 w-3.5 text-orange-500" />
                   Date de Recherche:
                 </Badge>
@@ -699,7 +788,7 @@ export default function Dashboard() {
             {dayLoading ? (
               <div className="py-20 text-center flex flex-col items-center justify-center gap-3">
                 <RefreshCw className="h-8 w-8 animate-spin text-orange-500" />
-                <p className="text-sm font-medium text-slate-500">Compilation de la journée en cours (calcul des 10-minutes)...</p>
+                <p className="text-sm font-medium text-slate-500">Compilation de la journée en cours (intervalles de 10 min)...</p>
               </div>
             ) : dayError ? (
               <div className="py-20 text-center border rounded-xl bg-red-50/20 dark:bg-red-950/10 border-red-200/50 flex flex-col items-center justify-center gap-2">
@@ -715,48 +804,48 @@ export default function Dashboard() {
               </div>
             ) : (
               <div className="space-y-6">
-                {/* Statistics Cards */}
-                <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                {/* Statistics Cards (Gradient Removed) */}
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                   <Card className="border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
                     <CardContent className="pt-4 pb-4">
-                      <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-wide">Température Maximale</span>
+                      <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-wide">Température Maximale Journalière</span>
                       <p className="text-lg font-black tracking-tight tabular-nums text-red-600 dark:text-red-400 mt-1">
                         {daySummary?.maxTemp !== null ? `${daySummary.maxTemp.toFixed(1)} °C` : "—"}
                       </p>
                       <p className="text-[10px] text-slate-450 dark:text-slate-400 mt-1.5 font-medium leading-normal bg-slate-50 dark:bg-slate-800/40 p-1.5 rounded border">
                         Capteur: <span className="font-bold">{daySummary?.maxTempSensor}</span>
                         <br />
-                        Pris à: <span className="font-bold">{daySummary?.maxTempTime}</span>
+                        Heure: <span className="font-bold">{daySummary?.maxTempTime}</span>
                       </p>
                     </CardContent>
                   </Card>
 
                   <Card className="border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
                     <CardContent className="pt-4 pb-4">
-                      <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-wide">Température Minimale</span>
+                      <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-wide">Température Minimale Journalière</span>
                       <p className="text-lg font-black tracking-tight tabular-nums text-blue-600 dark:text-blue-400 mt-1">
                         {daySummary?.minTemp !== null ? `${daySummary.minTemp.toFixed(1)} °C` : "—"}
                       </p>
                       <p className="text-[10px] text-slate-450 dark:text-slate-400 mt-1.5 font-medium leading-normal bg-slate-50 dark:bg-slate-800/40 p-1.5 rounded border">
                         Capteur: <span className="font-bold">{daySummary?.minTempSensor}</span>
                         <br />
-                        Pris à: <span className="font-bold">{daySummary?.minTempTime}</span>
+                        Heure: <span className="font-bold">{daySummary?.minTempTime}</span>
                       </p>
                     </CardContent>
                   </Card>
 
                   <Card className="border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
                     <CardContent className="pt-4 pb-4">
-                      <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-wide">Moyenne Globale</span>
+                      <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-wide">Moyennes Quotidiennes</span>
                       <div className="grid grid-cols-2 gap-2 mt-1">
                         <div>
-                          <span className="text-[9px] text-slate-400 block uppercase font-medium">Temp.</span>
+                          <span className="text-[9px] text-slate-400 block uppercase font-medium">Température</span>
                           <p className="text-base font-extrabold tracking-tight tabular-nums">
                             {daySummary?.avgTemp?.toFixed(1)}°C
                           </p>
                         </div>
                         <div>
-                          <span className="text-[9px] text-slate-400 block uppercase font-medium">Hum.</span>
+                          <span className="text-[9px] text-slate-400 block uppercase font-medium">Humidité</span>
                           <p className="text-base font-extrabold tracking-tight tabular-nums">
                             {daySummary?.avgHum?.toFixed(1)}%
                           </p>
@@ -767,30 +856,16 @@ export default function Dashboard() {
                       </p>
                     </CardContent>
                   </Card>
-
-                  <Card className="border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
-                    <CardContent className="pt-4 pb-4">
-                      <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-wide">Gradient Thermique Max</span>
-                      <p className="text-lg font-black tracking-tight tabular-nums text-orange-600 dark:text-orange-400 mt-1">
-                        {daySummary?.maxGradient !== null ? `${daySummary.maxGradient.toFixed(1)} °C` : "—"}
-                      </p>
-                      <p className="text-[10px] text-slate-450 dark:text-slate-400 mt-1.5 font-medium leading-normal bg-slate-50 dark:bg-slate-800/40 p-1.5 rounded border">
-                        Écart max constaté
-                        <br />
-                        Pris à: <span className="font-bold">{daySummary?.maxGradientTime}</span>
-                      </p>
-                    </CardContent>
-                  </Card>
                 </div>
 
-                {/* Day Charts */}
+                {/* Day Charts (Gradient Removed) */}
                 <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                   {/* Temperature Chart */}
                   <Card className="border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
                     <CardHeader className="pb-2">
                       <CardTitle className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
                         <Thermometer className="h-4.5 w-4.5 text-red-500" />
-                        Évolution Thermique 24h ({selectedDate})
+                        Distribution Thermique Fine ({selectedDate})
                       </CardTitle>
                       <CardDescription className="text-xs">
                         Données consolidées toutes les 10 minutes pour les 8 capteurs DHT22
@@ -838,10 +913,10 @@ export default function Dashboard() {
                     <CardHeader className="pb-2">
                       <CardTitle className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
                         <Droplets className="h-4.5 w-4.5 text-blue-500" />
-                        Évolution Hygrométrique 24h ({selectedDate})
+                        Distribution Hygrométrique Fine ({selectedDate})
                       </CardTitle>
                       <CardDescription className="text-xs">
-                        Profil d'humidité absolue compilé sur 10 minutes d'intervalle
+                        Profil d'humidité relative absolue compilé sur 10 minutes d'intervalle
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="pt-2">
@@ -881,74 +956,26 @@ export default function Dashboard() {
                     </CardContent>
                   </Card>
                 </div>
-
-                {/* Thermal Gradient Chart */}
-                <Card className="border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm w-full">
-                  <CardHeader className="pb-2 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div>
-                      <CardTitle className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                        <Gauge className="h-4.5 w-4.5 text-orange-500" />
-                        Gradient Thermique Instantané interne (°C)
-                      </CardTitle>
-                      <CardDescription className="text-xs">
-                        Différence de température maximale entre le point le plus chaud et le point le plus froid du séchoir solaire
-                      </CardDescription>
-                    </div>
-                    <Badge variant="outline" className="h-fit font-mono text-[10px] uppercase border-orange-200 text-orange-600 bg-orange-50/50">
-                      Physique du transfert: &Delta;T = Max(T_sensor) - Min(T_sensor)
-                    </Badge>
-                  </CardHeader>
-                  <CardContent className="pt-2">
-                    <div className="h-[200px]">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={dayData} margin={{ left: -10, right: 10, bottom: 0, top: 5 }}>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(148, 163, 184, 0.12)" />
-                          <XAxis dataKey="time" tick={{ fontSize: 10 }} tickMargin={8} stroke="#94a3b8" />
-                          <YAxis tick={{ fontSize: 10 }} stroke="#94a3b8" domain={[0, "auto"]} unit="°C" />
-                          <Tooltip
-                            contentStyle={{
-                              backgroundColor: "rgba(15, 23, 42, 0.95)",
-                              borderRadius: "8px",
-                              border: "none",
-                              boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
-                              fontSize: "11px",
-                              color: "#f8fafc"
-                            }}
-                          />
-                          <Line
-                            type="monotone"
-                            dataKey="gradient"
-                            name="Écart Gradient"
-                            stroke="#ea580c"
-                            strokeWidth={2.2}
-                            dot={false}
-                            activeDot={{ r: 5 }}
-                          />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </CardContent>
-                </Card>
               </div>
             )}
           </TabsContent>
 
-          {/* ========================================== */}
-          {/* TAB 3: TENDANCES MENSUELLES (MONTHLY)      */}
-          {/* ========================================== */}
+          {/* ======================================================== */}
+          {/* TAB 3: TENDANCES MENSUELLES (MONTHLY CLIMATIC averages) */}
+          {/* ======================================================== */}
           <TabsContent value="month" className="space-y-6 outline-none focus:ring-0">
             {/* Study Selector Row */}
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
               <div>
                 <h3 className="text-sm font-bold uppercase tracking-wider text-slate-850">
-                  Analyse de Rendement Thermodynamique Mensuel
+                  Analyse de Rendement Mensuel
                 </h3>
-                <p className="text-xs text-slate-450 dark:text-slate-400">
+                <p className="text-xs text-slate-550 dark:text-slate-400">
                   Visualisez l'évolution des moyennes quotidiennes et le nombre de journées actives à haut rendement (Température moyenne &gt; 35°C).
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                <Badge variant="outline" className="text-xs h-9 px-3 gap-1.5 border-slate-200 dark:border-slate-855 bg-slate-50/50 dark:bg-slate-800/20 font-semibold uppercase text-slate-500">
+                <Badge variant="outline" className="text-xs h-9 px-3 gap-1.5 border-slate-200 bg-slate-50 dark:bg-slate-800/20 font-semibold uppercase text-slate-505">
                   <TrendingUp className="h-3.5 w-3.5 text-orange-500" />
                   Mois de Recherche:
                 </Badge>
@@ -998,7 +1025,7 @@ export default function Dashboard() {
                       <p className="text-xl font-black tracking-tight tabular-nums text-slate-800 dark:text-slate-100 mt-1.5">
                         {monthSummary?.avgTemp !== null ? `${monthSummary.avgTemp.toFixed(1)} °C` : "—"}
                       </p>
-                      <p className="text-[10px] text-slate-450 dark:text-slate-400 mt-2 font-medium">
+                      <p className="text-[10px] text-slate-400 mt-2 font-medium">
                         Moyenne arithmétique globale du mois.
                       </p>
                     </CardContent>
@@ -1018,11 +1045,11 @@ export default function Dashboard() {
 
                   <Card className="border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
                     <CardContent className="pt-4 pb-4">
-                      <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-wide">Pic Thermique Absolu</span>
-                      <p className="text-lg font-black tracking-tight tabular-nums text-orange-650 dark:text-orange-400 mt-1">
+                      <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-wide">Pic Chaud Mensuel</span>
+                      <p className="text-lg font-black tracking-tight tabular-nums text-orange-655 mt-1">
                         {monthSummary?.maxTemp !== null ? `${monthSummary.maxTemp.toFixed(1)} °C` : "—"}
                       </p>
-                      <p className="text-[10px] text-slate-450 dark:text-slate-400 mt-1.5 font-medium leading-normal bg-slate-50 dark:bg-slate-800/40 p-1.5 rounded border">
+                      <p className="text-[10px] text-slate-450 dark:text-slate-450 mt-1.5 font-medium leading-normal bg-slate-50 dark:bg-slate-800/40 p-1.5 rounded border">
                         Le: <span className="font-bold">{monthSummary?.maxTempDate}</span>
                         <br />
                         Sur: <span className="font-bold">{monthSummary?.maxTempSensor}</span>
@@ -1036,8 +1063,8 @@ export default function Dashboard() {
                       <p className="text-lg font-black tracking-tight tabular-nums text-emerald-600 dark:text-emerald-400 mt-1">
                         {monthSummary?.activeOperationalDays !== null ? `${monthSummary.activeOperationalDays} jours` : "—"}
                       </p>
-                      <p className="text-[10px] text-slate-450 dark:text-slate-400 mt-1.5 font-medium leading-normal bg-slate-50 dark:bg-slate-800/40 p-1.5 rounded border">
-                        Moyenne journalière &gt; 35°C
+                      <p className="text-[10px] text-slate-450 dark:text-slate-450 mt-1.5 font-medium leading-normal bg-slate-50 dark:bg-slate-800/40 p-1.5 rounded border">
+                        Moyenne quotidienne &gt; 35°C
                         <br />
                         Sur un total de <span className="font-bold">{monthSummary?.totalActiveDays} jours</span> de mesure.
                       </p>
@@ -1047,12 +1074,12 @@ export default function Dashboard() {
 
                 {/* Monthly Charts */}
                 <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                  {/* Temperature averages */}
+                  {/* Temperature daily averages */}
                   <Card className="border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
                     <CardHeader className="pb-2">
                       <CardTitle className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
                         <Thermometer className="h-4.5 w-4.5 text-red-500" />
-                        Rendement Thermique Quotidien (Moyennes)
+                        Rendement Thermique Quotidien (Moyennes en Jours)
                       </CardTitle>
                       <CardDescription className="text-xs">
                         Évolution journalière des moyennes de température de chaque capteur
@@ -1104,12 +1131,12 @@ export default function Dashboard() {
                     </CardContent>
                   </Card>
 
-                  {/* Humidity averages */}
+                  {/* Humidity daily averages */}
                   <Card className="border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
                     <CardHeader className="pb-2">
                       <CardTitle className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
                         <Droplets className="h-4.5 w-4.5 text-blue-500" />
-                        Rendement Hygrométrique Quotidien (Moyennes)
+                        Rendement Hygrométrique Quotidien (Moyennes en Jours)
                       </CardTitle>
                       <CardDescription className="text-xs">
                         Évolution journalière des moyennes d'humidité de chaque capteur
@@ -1180,10 +1207,10 @@ export default function Dashboard() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  <p className="text-xs text-slate-500 leading-relaxed">
+                  <p className="text-xs text-slate-505 leading-relaxed">
                     Ce projet constitue le <strong>Système d'Acquisition Spatialisé en Temps Réel</strong> du séchoir solaire expérimental de l'<strong>Université de Béchar</strong>. Les 8 capteurs physiques <strong>DHT22</strong> sont distribués à des hauteurs et positions stratégiques à l'intérieur du collecteur solaire et de la chambre de séchage. 
                   </p>
-                  <p className="text-xs text-slate-500 leading-relaxed">
+                  <p className="text-xs text-slate-505 leading-relaxed">
                     Cette disposition permet d'analyser le <strong>transfert thermique tridimensionnel</strong>, de cartographier les gradients de convection et d'évaluer le taux d'évaporation hygrométrique des produits en phase de traitement. Les données sont indispensables pour modéliser le coefficient thermodynamique global du séchoir solaire.
                   </p>
                 </CardContent>
@@ -1198,7 +1225,7 @@ export default function Dashboard() {
                     Base de Données Complète
                   </CardTitle>
                   <CardDescription className="text-slate-400 text-[10px] uppercase font-mono">
-                    {totalRecords} Enregistrements Pivotes
+                    {totalRecords} Enregistrements Pivotés
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="pb-4 space-y-4 flex-1 flex flex-col justify-between pt-2">
@@ -1317,7 +1344,7 @@ export default function Dashboard() {
                 {/* Pagination Controls */}
                 {totalPages > 0 && (
                   <div className="flex flex-col sm:flex-row items-center justify-between p-4 border-t border-slate-200 dark:border-slate-800 gap-4 bg-slate-50/50 dark:bg-slate-800/10">
-                    <p className="text-xs font-semibold text-slate-500">
+                    <p className="text-xs font-semibold text-slate-505">
                       Affichage de {paginatedData.length} lignes sur un total de {totalRecords} lignes pivotées
                     </p>
                     <div className="flex items-center gap-1">
@@ -1378,7 +1405,7 @@ export default function Dashboard() {
           </TabsContent>
         </Tabs>
 
-        {/* ──── Footer: Scientific Affiliation ──── */}
+        {/* ──── Footer ──── */}
         <footer className="py-8 text-center text-[11px] font-medium text-slate-400 border-t border-slate-200 dark:border-slate-800 mt-6">
           Université de Béchar • Département de Physique & Énergie Solaire • Système de Télémétrie Séchoir Solaire Connecté © {new Date().getFullYear()}
         </footer>

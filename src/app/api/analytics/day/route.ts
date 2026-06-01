@@ -148,15 +148,9 @@ export async function GET(request: Request) {
       buckets[key][`${hKey}_count`]++;
     });
 
-    let maxGradient = 0;
-    let maxGradientTime = '';
-
     const bucketData = Object.values(buckets).map((b: any) => {
       const row: any = { time: b.time, timestamp: b.timestamp };
       
-      let bMaxT = -Infinity;
-      let bMinT = Infinity;
-
       SENSORS.forEach((s) => {
         const tKey = `${s}_temp`;
         const hKey = `${s}_hum`;
@@ -164,28 +158,12 @@ export async function GET(request: Request) {
         if (b[`${tKey}_count`] > 0) {
           const avgSensorTemp = b[`${tKey}_sum`] / b[`${tKey}_count`];
           row[tKey] = parseFloat(avgSensorTemp.toFixed(2));
-          
-          if (avgSensorTemp > bMaxT) bMaxT = avgSensorTemp;
-          if (avgSensorTemp < bMinT) bMinT = avgSensorTemp;
         }
 
         if (b[`${hKey}_count`] > 0) {
           row[hKey] = parseFloat((b[`${hKey}_sum`] / b[`${hKey}_count`]).toFixed(2));
         }
       });
-
-      // Compute instantaneous thermal gradient inside the solar dryer
-      if (bMaxT !== -Infinity && bMinT !== Infinity) {
-        const grad = parseFloat((bMaxT - bMinT).toFixed(2));
-        row.gradient = grad;
-        
-        if (grad > maxGradient) {
-          maxGradient = grad;
-          maxGradientTime = b.time;
-        }
-      } else {
-        row.gradient = 0;
-      }
 
       return row;
     }).sort((a: any, b: any) => a.timestamp - b.timestamp);
@@ -199,8 +177,6 @@ export async function GET(request: Request) {
       minTemp: minTemp !== Infinity ? minTemp : null,
       minTempSensor,
       minTempTime,
-      maxGradient,
-      maxGradientTime,
       totalRawRows: allData.length,
       device_id: deviceId,
       date
