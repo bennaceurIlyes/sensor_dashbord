@@ -4,6 +4,9 @@ import React, { useState, useEffect, useCallback } from "react";
 import {
   LineChart,
   Line,
+  BarChart,
+  Bar,
+  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -83,6 +86,123 @@ const SENSOR_COLORS: Record<string, string> = {
 const isValidTemp = (t: any) => t !== undefined && t !== null && Number(t) >= 5 && Number(t) <= 85;
 const isValidHum = (h: any) => h !== undefined && h !== null && Number(h) >= 1 && Number(h) <= 100;
 
+// Algorithm to compute histogram data & statistics from readings
+const computeHistogramData = (
+  data: any[],
+  metric: "temp" | "hum",
+  sensor: string,
+  binCount: number
+) => {
+  const values: number[] = [];
+  data.forEach((row) => {
+    if (sensor === "ALL") {
+      SENSORS.forEach((s) => {
+        const val = row[`${s}_${metric}`];
+        if (metric === "temp" ? isValidTemp(val) : isValidHum(val)) {
+          values.push(Number(val));
+        }
+      });
+    } else {
+      const val = row[`${sensor}_${metric}`];
+      if (metric === "temp" ? isValidTemp(val) : isValidHum(val)) {
+        values.push(Number(val));
+      }
+    }
+  });
+
+  if (values.length === 0) {
+    return {
+      bins: [],
+      stats: { min: 0, max: 0, avg: 0, median: 0, count: 0 },
+    };
+  }
+
+  // Calculate statistics
+  values.sort((a, b) => a - b);
+  const count = values.length;
+  const min = values[0];
+  const max = values[count - 1];
+  const sum = values.reduce((acc, v) => acc + v, 0);
+  const avg = sum / count;
+  
+  // Median
+  const mid = Math.floor(count / 2);
+  const median = count % 2 !== 0 ? values[mid] : (values[mid - 1] + values[mid]) / 2;
+
+  // Set bin ranges
+  let binMin = min;
+  let binMax = max;
+  if (binMin === binMax) {
+    binMin -= 1;
+    binMax += 1;
+  }
+
+  const binWidth = (binMax - binMin) / binCount;
+  const bins = Array.from({ length: binCount }, (_, i) => {
+    const start = binMin + i * binWidth;
+    const end = start + binWidth;
+    return {
+      binStart: start,
+      binEnd: end,
+      label: `${start.toFixed(1)} - ${end.toFixed(1)}`,
+      count: 0,
+      percentage: 0,
+    };
+  });
+
+  // Distribute values into bins
+  values.forEach((v) => {
+    for (let i = 0; i < binCount; i++) {
+      const isLast = i === binCount - 1;
+      const start = bins[i].binStart;
+      const end = bins[i].binEnd;
+      if (v >= start && (isLast ? v <= end : v < end)) {
+        bins[i].count++;
+        break;
+      }
+    }
+  });
+
+  bins.forEach((b) => {
+    b.percentage = parseFloat(((b.count / count) * 100).toFixed(1));
+  });
+
+  return {
+    bins,
+    stats: {
+      min,
+      max,
+      avg: parseFloat(avg.toFixed(1)),
+      median: parseFloat(median.toFixed(1)),
+      count,
+    },
+  };
+};
+
+// Helper to get thermodynamic colors dynamically for each histogram class/bin
+const getBinColor = (bin: any, metric: "temp" | "hum", sensor: string) => {
+  if (sensor !== "ALL") {
+    return SENSOR_COLORS[sensor] || "#f97316";
+  }
+  
+  const avgVal = (bin.binStart + bin.binEnd) / 2;
+  
+  if (metric === "temp") {
+    // Dynamic color scaling for solar dryer temperature (Cool blue to hot red)
+    if (avgVal < 25) return "#3b82f6"; // Cool Blue
+    if (avgVal < 38) return "#10b981"; // Emerald
+    if (avgVal < 50) return "#f59e0b"; // Warm Amber
+    if (avgVal < 62) return "#f97316"; // Bright Orange
+    return "#ef4444"; // Intense Red
+  } else {
+    // Dynamic color scaling for humidity (dry light-blue to highly humid dark-navy)
+    if (avgVal < 30) return "#a5f3fc"; // Very dry (Cyan)
+    if (avgVal < 50) return "#06b6d4"; // Cyan
+    if (avgVal < 75) return "#3b82f6"; // Blue
+    return "#1e3a8a"; // Highly humid (Deep Blue)
+  }
+};
+
 export default function Dashboard() {
   /* ---------- Sidebar Active Page Routing State ---------- */
   const [activeView, setActiveView] = useState<"analyse" | "logs">("analyse");
@@ -126,6 +246,12 @@ export default function Dashboard() {
   const [visibleSensors, setVisibleSensors] = useState<string[]>([
     "DHT1", "DHT2", "DHT3", "DHT4", "DHT5", "DHT6", "DHT7", "DHT8"
   ]);
+
+  /* ---------- Histogram Analysis States ---------- */
+  const [histoSource, setHistoSource] = useState<"day" | "range" | "month">("day");
+  const [histoMetric, setHistoMetric] = useState<"temp" | "hum">("temp");
+  const [histoSensor, setHistoSensor] = useState<string>("ALL");
+  const [histoBins, setHistoBins] = useState<number>(10);
 
   /* ---------- Database Clean Actions Confirmation States ---------- */
   const [deleteConfirm, setDeleteConfirm] = useState(false);
@@ -323,6 +449,21 @@ export default function Dashboard() {
       }
     });
   }
+
+  /* ---------- Histogram Calculations ---------- */
+  const activeHistoData = 
+    histoSource === "day" 
+      ? dayData 
+      : histoSource === "month" 
+      ? monthData 
+      : rangeData;
+
+  const { bins: histoBinsData, stats: histoStats } = computeHistogramData(
+    activeHistoData,
+    histoMetric,
+    histoSensor,
+    histoBins
+  );
 
   // Pagination controls
   const getPageNumbers = () => {
@@ -922,6 +1063,229 @@ export default function Dashboard() {
                     </Card>
                   </div>
                 )}
+              </div>
+
+              {/* SECTION D: THERMODYNAMIC HISTOGRAM */}
+              <div className="space-y-4">
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                  <div>
+                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                      <Sliders className="h-4.5 w-4.5 text-orange-500" />
+                      4. Analyse de Distribution & Fréquences (Histogramme)
+                    </h3>
+                    <p className="text-[11px] text-slate-500">
+                      Visualisez la distribution statistique et la concentration des relevés thermiques et hygrométriques.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {/* Source Selector */}
+                    <div className="flex items-center rounded-md border border-slate-200 bg-slate-50 p-0.5 shadow-sm">
+                      <button
+                        onClick={() => setHistoSource("day")}
+                        className={`px-2.5 py-1 text-[10px] font-bold uppercase rounded transition-all cursor-pointer ${
+                          histoSource === "day"
+                            ? "bg-white text-orange-600 shadow-sm"
+                            : "text-slate-500 hover:text-slate-900"
+                        }`}
+                      >
+                        Journée
+                      </button>
+                      <button
+                        onClick={() => setHistoSource("range")}
+                        className={`px-2.5 py-1 text-[10px] font-bold uppercase rounded transition-all cursor-pointer ${
+                          histoSource === "range"
+                            ? "bg-white text-orange-600 shadow-sm"
+                            : "text-slate-500 hover:text-slate-900"
+                        }`}
+                      >
+                        Période
+                      </button>
+                      <button
+                        onClick={() => setHistoSource("month")}
+                        className={`px-2.5 py-1 text-[10px] font-bold uppercase rounded transition-all cursor-pointer ${
+                          histoSource === "month"
+                            ? "bg-white text-orange-600 shadow-sm"
+                            : "text-slate-500 hover:text-slate-900"
+                        }`}
+                      >
+                        Mois
+                      </button>
+                    </div>
+
+                    {/* Metric Selector */}
+                    <div className="flex items-center rounded-md border border-slate-200 bg-slate-50 p-0.5 shadow-sm">
+                      <button
+                        onClick={() => setHistoMetric("temp")}
+                        className={`px-2.5 py-1 text-[10px] font-bold uppercase rounded transition-all cursor-pointer ${
+                          histoMetric === "temp"
+                            ? "bg-orange-500 text-white shadow-sm"
+                            : "text-slate-500 hover:text-slate-900"
+                        }`}
+                      >
+                        Temp (°C)
+                      </button>
+                      <button
+                        onClick={() => setHistoMetric("hum")}
+                        className={`px-2.5 py-1 text-[10px] font-bold uppercase rounded transition-all cursor-pointer ${
+                          histoMetric === "hum"
+                            ? "bg-blue-500 text-white shadow-sm"
+                            : "text-slate-500 hover:text-slate-900"
+                        }`}
+                      >
+                        Hum (%)
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <Card className="border-slate-205 bg-white shadow-sm">
+                  <CardHeader className="pb-3 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div className="flex items-center gap-4">
+                      {/* Sensor Dropdown */}
+                      <div className="flex flex-col">
+                        <span className="text-[9px] font-bold text-slate-400 uppercase mb-1">Capteur Analysé</span>
+                        <select
+                          value={histoSensor}
+                          onChange={(e) => setHistoSensor(e.target.value)}
+                          className="h-8 rounded-md border border-slate-250 bg-white px-2 py-0.5 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-orange-500 shadow-sm text-slate-800"
+                        >
+                          <option value="ALL">Tous les capteurs</option>
+                          {SENSORS.map((s) => (
+                            <option key={s} value={s}>
+                              {s} (Séchoir)
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Bins Selector */}
+                      <div className="flex flex-col">
+                        <span className="text-[9px] font-bold text-slate-400 uppercase mb-1">Résolution (Classes)</span>
+                        <select
+                          value={histoBins}
+                          onChange={(e) => setHistoBins(Number(e.target.value))}
+                          className="h-8 rounded-md border border-slate-250 bg-white px-2 py-0.5 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-orange-500 shadow-sm text-slate-800"
+                        >
+                          <option value={5}>5 Intervalles (Large)</option>
+                          <option value={8}>8 Intervalles</option>
+                          <option value={10}>10 Intervalles (Standard)</option>
+                          <option value={12}>12 Intervalles</option>
+                          <option value={15}>15 Intervalles (Fidèle)</option>
+                          <option value={20}>20 Intervalles (Haute-Fidélité)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      <Badge variant="secondary" className="bg-slate-100 text-slate-700 font-mono text-[10px] py-1 border border-slate-200 shadow-sm">
+                        Échantillon : {histoStats.count} Lectures
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  
+                  <CardContent className="p-6">
+                    {histoBinsData.length === 0 ? (
+                      <div className="py-16 text-center text-slate-400">
+                        Aucune donnée disponible pour les filtres sélectionnés. Veuillez vérifier les données sur d'autres périodes ou d'autres capteurs.
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                        {/* Summary Stats Cards */}
+                        <div className="grid grid-cols-2 lg:grid-cols-1 gap-3 content-start">
+                          <div className="bg-slate-50 border border-slate-150 rounded-xl p-3.5 flex flex-col justify-between shadow-sm">
+                            <span className="text-[9px] font-bold text-slate-400 uppercase">Moyenne</span>
+                            <span className="text-xl font-black tracking-tight text-slate-850 tabular-nums mt-1">
+                              {histoStats.avg.toFixed(1)}
+                              <span className="text-xs font-normal text-slate-400 ml-0.5">
+                                {histoMetric === "temp" ? "°C" : "%"}
+                              </span>
+                            </span>
+                          </div>
+                          
+                          <div className="bg-slate-50 border border-slate-150 rounded-xl p-3.5 flex flex-col justify-between shadow-sm">
+                            <span className="text-[9px] font-bold text-slate-400 uppercase">Médiane</span>
+                            <span className="text-xl font-black tracking-tight text-slate-850 tabular-nums mt-1">
+                              {histoStats.median.toFixed(1)}
+                              <span className="text-xs font-normal text-slate-400 ml-0.5">
+                                {histoMetric === "temp" ? "°C" : "%"}
+                              </span>
+                            </span>
+                          </div>
+
+                          <div className="bg-slate-50 border border-slate-150 rounded-xl p-3.5 flex flex-col justify-between shadow-sm">
+                            <span className="text-[9px] font-bold text-slate-400 uppercase">Min / Max</span>
+                            <span className="text-sm font-black tracking-tight text-slate-850 tabular-nums mt-1.5 flex justify-between">
+                              <span className="text-emerald-600 font-extrabold">{histoStats.min.toFixed(1)}</span>
+                              <span className="text-slate-350">|</span>
+                              <span className="text-rose-600 font-extrabold">{histoStats.max.toFixed(1)}</span>
+                              <span className="text-[10px] font-normal text-slate-400 ml-0.5">
+                                {histoMetric === "temp" ? "°C" : "%"}
+                              </span>
+                            </span>
+                          </div>
+
+                          <div className="bg-slate-50 border border-slate-150 rounded-xl p-3.5 flex flex-col justify-between shadow-sm">
+                            <span className="text-[9px] font-bold text-slate-400 uppercase">Amplitude Thermique</span>
+                            <span className="text-xl font-black tracking-tight text-orange-600 tabular-nums mt-1">
+                              {(histoStats.max - histoStats.min).toFixed(1)}
+                              <span className="text-xs font-normal text-slate-400 ml-0.5">
+                                {histoMetric === "temp" ? "°C" : "%"}
+                              </span>
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Chart Area */}
+                        <div className="lg:col-span-3 h-[300px] border border-slate-100 rounded-xl p-4 bg-slate-50/20 relative shadow-sm">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={histoBinsData} margin={{ left: -10, right: 10, bottom: 5, top: 5 }}>
+                              {showChartGrid && <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(148, 163, 184, 0.12)" />}
+                              <XAxis 
+                                dataKey="label" 
+                                tick={{ fontSize: 9, fontWeight: 600 }} 
+                                tickMargin={8} 
+                                stroke="#94a3b8" 
+                              />
+                              <YAxis 
+                                tick={{ fontSize: 10 }} 
+                                stroke="#94a3b8" 
+                                unit="%" 
+                              />
+                              <Tooltip 
+                                contentStyle={{ 
+                                  backgroundColor: "rgba(15, 23, 42, 0.95)", 
+                                  borderRadius: "12px", 
+                                  border: "none", 
+                                  color: "#f8fafc", 
+                                  fontSize: "11px",
+                                  boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)"
+                                }}
+                                formatter={(value: any, name: any, props: any) => {
+                                  if (name === "percentage") {
+                                    const count = props.payload?.count ?? 0;
+                                    return [`${value}% des lectures (${count} fois)`, "Proportion"];
+                                  }
+                                  return [value, name];
+                                }}
+                              />
+                              <Bar 
+                                dataKey="percentage" 
+                                radius={[6, 6, 0, 0]}
+                              >
+                                {histoBinsData.map((entry, index) => (
+                                  <Cell 
+                                    key={`cell-${index}`} 
+                                    fill={getBinColor(entry, histoMetric, histoSensor)}
+                                  />
+                                ))}
+                              </Bar>
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
               </div>
             </div>
           )}
