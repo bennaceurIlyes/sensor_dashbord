@@ -497,7 +497,7 @@ export default function Dashboard() {
                                 <div className="flex items-center gap-0.5 mt-0.5">
                                   <Thermometer className="h-4 w-4 text-orange-500" />
                                   <span className="text-base font-black tracking-tight tabular-nums text-slate-800">
-                                    {data.temperature.toFixed(1)}
+                                    {data.temperature !== undefined && data.temperature !== null ? Number(data.temperature).toFixed(1) : "—"}
                                     <span className="text-xs font-normal text-slate-400 ml-0.5">°C</span>
                                   </span>
                                 </div>
@@ -509,7 +509,7 @@ export default function Dashboard() {
                                 <div className="flex items-center gap-0.5 mt-0.5">
                                   <Droplets className="h-4 w-4 text-blue-500" />
                                   <span className="text-base font-black tracking-tight tabular-nums text-slate-800">
-                                    {data.humidity.toFixed(1)}
+                                    {data.humidity !== undefined && data.humidity !== null ? Number(data.humidity).toFixed(1) : "—"}
                                     <span className="text-xs font-normal text-slate-400 ml-0.5">%</span>
                                   </span>
                                 </div>
