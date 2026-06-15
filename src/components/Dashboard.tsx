@@ -83,14 +83,14 @@ const SENSOR_COLORS: Record<string, string> = {
 };
 
 const SENSOR_INFO: Record<string, { x: number; y: number; name: string }> = {
-  DHT1: { x: 77, y: 13, name: "Entrée Capteur Solaire (Haut)" },
-  DHT2: { x: 54, y: 23, name: "Milieu Capteur Solaire" },
-  DHT3: { x: 24, y: 39, name: "Sortie Capteur Solaire (Bas)" },
-  DHT4: { x: 32, y: 62, name: "Entrée Chambre Séchage" },
-  DHT5: { x: 49, y: 71, name: "Milieu Chambre Séchage" },
-  DHT6: { x: 54, y: 51, name: "Plafond Chambre Séchage" },
-  DHT7: { x: 62, y: 80, name: "Bas Chambre Séchage" },
-  DHT8: { x: 74, y: 64, name: "Sortie Chambre Séchage" },
+  DHT1: { x: 86, y: 13, name: "Entrée Capteur Solaire (Haut)" },
+  DHT2: { x: 38, y: 13, name: "Milieu Capteur Solaire" },
+  DHT3: { x: 10, y: 25, name: "Sortie Capteur Solaire (Bas)" },
+  DHT4: { x: 10, y: 66, name: "Entrée Chambre Séchage" },
+  DHT5: { x: 42, y: 89, name: "Milieu Chambre Séchage" },
+  DHT6: { x: 62, y: 39, name: "Plafond Chambre Séchage" },
+  DHT7: { x: 74, y: 89, name: "Bas Chambre Séchage" },
+  DHT8: { x: 88, y: 67, name: "Sortie Chambre Séchage" },
 };
 
 // Helper for physical data validation (DHT22 sensor noise filter)
@@ -742,11 +742,11 @@ export default function Dashboard() {
                             <div
                               onMouseEnter={() => setHoveredSensor(sensor)}
                               onMouseLeave={() => setHoveredSensor(null)}
-                              className={`hidden md:flex flex-col p-1.5 rounded-lg bg-white/50 backdrop-blur-md border border-white/50 shadow-sm transition-all duration-300 pointer-events-auto cursor-pointer select-none relative ${
+                              className={`hidden md:flex flex-col p-1.5 rounded-lg bg-white/20 backdrop-blur-[1px] border border-white/30 shadow-sm transition-all duration-300 pointer-events-auto cursor-pointer select-none relative ${
                                 isHovered
-                                  ? "ring-2 ring-orange-500/70 shadow-[0_4px_15px_rgba(249,115,22,0.18)] scale-[1.03] z-30"
+                                  ? "ring-2 ring-orange-500/70 shadow-[0_4px_15px_rgba(249,115,22,0.18)] scale-[1.03] z-30 bg-white/50 backdrop-blur-md border-white/50"
                                   : isDimmed
-                                  ? "opacity-30 scale-95 border-white/30"
+                                  ? "opacity-30 scale-95 border-white/20"
                                   : "opacity-[0.93] hover:opacity-100 hover:scale-[1.01]"
                               }`}
                               style={{
