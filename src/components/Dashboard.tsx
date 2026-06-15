@@ -82,6 +82,17 @@ const SENSOR_COLORS: Record<string, string> = {
   DHT8: "#d946ef", // Fuchsia
 };
 
+const SENSOR_INFO: Record<string, { x: number; y: number; name: string }> = {
+  DHT1: { x: 77, y: 13, name: "Entrée Capteur Solaire (Haut)" },
+  DHT2: { x: 54, y: 23, name: "Milieu Capteur Solaire" },
+  DHT3: { x: 24, y: 39, name: "Sortie Capteur Solaire (Bas)" },
+  DHT4: { x: 32, y: 62, name: "Entrée Chambre Séchage" },
+  DHT5: { x: 49, y: 71, name: "Milieu Chambre Séchage" },
+  DHT6: { x: 54, y: 51, name: "Plafond Chambre Séchage" },
+  DHT7: { x: 62, y: 80, name: "Bas Chambre Séchage" },
+  DHT8: { x: 74, y: 64, name: "Sortie Chambre Séchage" },
+};
+
 // Helper for physical data validation (DHT22 sensor noise filter)
 const isValidTemp = (t: any) => t !== undefined && t !== null && Number(t) >= 5 && Number(t) <= 85;
 const isValidHum = (h: any) => h !== undefined && h !== null && Number(h) >= 1 && Number(h) <= 100;
@@ -206,6 +217,9 @@ const getBinColor = (bin: any, metric: "temp" | "hum", sensor: string) => {
 export default function Dashboard() {
   /* ---------- Sidebar Active Page Routing State ---------- */
   const [activeView, setActiveView] = useState<"analyse" | "logs">("analyse");
+
+  /* ---------- Interactive Sensor Diagram States ---------- */
+  const [hoveredSensor, setHoveredSensor] = useState<string | null>(null);
 
   /* ---------- Real-Time Logs / Explorer States ---------- */
   const [paginatedData, setPaginatedData] = useState<PivotRow[]>([]);
@@ -598,75 +612,273 @@ export default function Dashboard() {
           {/* ========================================== */}
           {activeView === "analyse" && (
             <div className="space-y-6 animate-fade-in">
-              {/* EIGHT SQUARES TELEMETRY GRID */}
-              <Card className="border-slate-200 bg-white shadow-sm">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-                    <Sliders className="h-4.5 w-4.5 text-orange-500" />
-                    Relevés Physiques en Direct (DHT1 à DHT8)
-                  </CardTitle>
-                  <CardDescription className="text-[11px]">
-                    Données thermiques et hygrométriques acquises en temps réel par les capteurs physiques.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="pt-2">
-                  <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                    {SENSORS.map((sensor) => {
-                      const data = latestReadings[sensor];
-                      const color = SENSOR_COLORS[sensor];
-                      
-                      return (
-                        <div
-                          key={sensor}
-                          className="border border-slate-200/80 rounded-xl p-4 bg-white transition-all duration-200 hover:scale-[1.02] hover:shadow-md flex flex-col justify-between h-[120px] relative overflow-hidden"
-                        >
-                          {/* Color accent line */}
-                          <div className="absolute top-0 left-0 w-full h-[4px]" style={{ backgroundColor: color }} />
-                          
-                          {/* Sensor Title */}
-                          <div className="flex items-center gap-1.5 font-black uppercase text-xs text-slate-800">
-                            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: color }} />
-                            {sensor}
-                          </div>
-
-                          {/* Metrics */}
-                          {data ? (
-                            <div className="grid grid-cols-2 gap-2 mt-1.5">
-                              {/* Temp */}
-                              <div className="flex flex-col">
-                                <span className="text-[9px] font-bold text-slate-400 uppercase leading-none">Température</span>
-                                <div className="flex items-center gap-0.5 mt-0.5">
-                                  <Thermometer className="h-4 w-4 text-orange-500" />
-                                  <span className="text-base font-black tracking-tight tabular-nums text-slate-800">
-                                    {data.temperature !== undefined && data.temperature !== null ? Number(data.temperature).toFixed(1) : "—"}
-                                    <span className="text-xs font-normal text-slate-400 ml-0.5">°C</span>
-                                  </span>
-                                </div>
-                              </div>
-                              
-                              {/* Humid */}
-                              <div className="flex flex-col border-l border-slate-100 pl-2">
-                                <span className="text-[9px] font-bold text-slate-400 uppercase leading-none">Humidité</span>
-                                <div className="flex items-center gap-0.5 mt-0.5">
-                                  <Droplets className="h-4 w-4 text-blue-500" />
-                                  <span className="text-base font-black tracking-tight tabular-nums text-slate-800">
-                                    {data.humidity !== undefined && data.humidity !== null ? Number(data.humidity).toFixed(1) : "—"}
-                                    <span className="text-xs font-normal text-slate-400 ml-0.5">%</span>
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="py-2 text-center text-red-500 font-bold uppercase text-[10px]">
-                              Déconnecté
-                            </div>
-                          )}
+              {/* INTERACTIVE 3D SOLAR DRYER DIAGRAM OVERVIEW */}
+              <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                
+                {/* Left side: Interactive Diagram (3/4 width on desktop) */}
+                <Card className="lg:col-span-3 border-slate-200 bg-white shadow-sm flex flex-col justify-between overflow-hidden">
+                  <CardHeader className="pb-2">
+                    <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
+                      <div>
+                        <CardTitle className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                          <Sliders className="h-4.5 w-4.5 text-orange-500" />
+                          Synoptique Interactif du Séchoir Solaire
+                        </CardTitle>
+                        <CardDescription className="text-[11px]">
+                          Survolez ou cliquez sur un capteur (ou sa légende) pour localiser sa position et visualiser ses données en direct.
+                        </CardDescription>
+                      </div>
+                      {hoveredSensor && (
+                        <div className="flex items-center gap-1.5 text-[10px] bg-slate-100 py-1 px-2.5 rounded-md border border-slate-200 animate-fade-in font-bold text-slate-700">
+                          <span className="h-2 w-2 rounded-full" style={{ backgroundColor: SENSOR_COLORS[hoveredSensor] }} />
+                          {hoveredSensor} : {SENSOR_INFO[hoveredSensor].name}
                         </div>
-                      );
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
+                      )}
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-2 pb-6 flex items-center justify-center">
+                    <div className="w-full relative aspect-square max-w-[620px] bg-white rounded-xl border border-slate-150 overflow-hidden shadow-inner p-1">
+                      
+                      {/* Diagram Image */}
+                      <img 
+                        src="/clean_solar_dryer.png" 
+                        alt="Diagramme Séchoir Solaire" 
+                        className="w-full h-full object-contain pointer-events-none select-none transition-all duration-300"
+                        style={{
+                          opacity: hoveredSensor ? 0.95 : 1,
+                        }}
+                      />
+                      
+                      {/* 8 Sensor Widgets / Markers */}
+                      {SENSORS.map((sensor) => {
+                        const data = latestReadings[sensor];
+                        const isConnected = !!data;
+                        const isHovered = hoveredSensor === sensor;
+                        const isDimmed = hoveredSensor !== null && !isHovered;
+                        const color = SENSOR_COLORS[sensor];
+                        const pos = SENSOR_INFO[sensor];
+                        
+                        return (
+                          <div
+                            key={sensor}
+                            className="absolute transition-all duration-300"
+                            style={{
+                              left: `${pos.x}%`,
+                              top: `${pos.y}%`,
+                              transform: "translate(-50%, -50%)",
+                              zIndex: isHovered ? 40 : 20,
+                            }}
+                          >
+                            {/* --- MOBILE MARKER (Pulsing Dot) --- */}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setHoveredSensor(isHovered ? null : sensor);
+                              }}
+                              className={`md:hidden flex items-center justify-center w-8 h-8 rounded-full border-2 bg-white shadow-md transition-all duration-205 cursor-pointer select-none relative ${
+                                isHovered 
+                                  ? "scale-125 ring-4 ring-orange-500/35 opacity-100" 
+                                  : isDimmed 
+                                  ? "opacity-30 scale-90" 
+                                  : "opacity-95 hover:scale-105"
+                              }`}
+                              style={{
+                                borderColor: color,
+                                color: isHovered ? "#ea580c" : color,
+                                fontWeight: 900,
+                              }}
+                            >
+                              {sensor.replace("DHT", "")}
+                              {isConnected ? (
+                                <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                  <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500 border border-white"></span>
+                                </span>
+                              ) : (
+                                <span className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-red-500 border border-white" />
+                              )}
+                            </button>
+
+                            {/* --- MOBILE TOOLTIP / DETAIL PANEL --- */}
+                            {isHovered && (
+                              <div 
+                                className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 bg-slate-900/95 backdrop-blur-md text-white rounded-xl p-3 shadow-xl border border-slate-800 animate-fade-in pointer-events-none md:hidden z-50 text-[10px]"
+                                style={{
+                                  boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.3)",
+                                }}
+                              >
+                                <div className="flex items-center justify-between border-b border-slate-800 pb-1.5 mb-1.5">
+                                  <span className="font-black tracking-wider uppercase text-orange-400">{sensor}</span>
+                                  <span className="h-2 w-2 rounded-full" style={{ backgroundColor: isConnected ? "#10b981" : "#ef4444" }} />
+                                </div>
+                                <div className="text-[9px] text-slate-400 font-semibold mb-2 leading-tight">
+                                  {pos.name}
+                                </div>
+                                {isConnected ? (
+                                  <div className="space-y-1.5 font-medium">
+                                    <div className="flex justify-between items-center">
+                                      <span className="text-slate-400 flex items-center gap-1"><Thermometer className="h-3 w-3 text-orange-500" /> Température</span>
+                                      <span className="font-extrabold text-white">{Number(data.temperature).toFixed(1)} °C</span>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                      <span className="text-slate-400 flex items-center gap-1"><Droplets className="h-3 w-3 text-blue-500" /> Humidité</span>
+                                      <span className="font-extrabold text-white">{Number(data.humidity).toFixed(1)} %</span>
+                                    </div>
+                                    <div className="flex justify-between text-[9px] text-slate-500 pt-1.5 border-t border-slate-800/80 font-mono">
+                                      <span>Mis à jour</span>
+                                      <span>{data.time || "—"}</span>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="text-red-400 font-bold uppercase text-[9px] tracking-wider py-1 flex items-center gap-1">
+                                    Capteur Déconnecté
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            {/* --- DESKTOP WIDGET (Mini LCD Screen) --- */}
+                            <div
+                              onMouseEnter={() => setHoveredSensor(sensor)}
+                              onMouseLeave={() => setHoveredSensor(null)}
+                              className={`hidden md:flex flex-col p-1.5 rounded-lg bg-white/95 backdrop-blur-sm border shadow-sm transition-all duration-300 pointer-events-auto cursor-pointer select-none relative ${
+                                isHovered
+                                  ? "ring-2 ring-orange-500/70 shadow-[0_4px_15px_rgba(249,115,22,0.2)] scale-[1.04] z-30"
+                                  : isDimmed
+                                  ? "opacity-30 scale-95 border-slate-100"
+                                  : "opacity-[0.93] hover:opacity-100 border-slate-200/90 hover:scale-[1.01]"
+                              }`}
+                              style={{
+                                width: "96px",
+                              }}
+                            >
+                              {/* Glowing pointer/arrow overlay when active */}
+                              {isHovered && (
+                                <div 
+                                  className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 rotate-45 border-r border-b border-orange-500/70"
+                                  style={{ backgroundColor: "white", zIndex: -1 }}
+                                />
+                              )}
+                              
+                              <div className="flex items-center justify-between text-[8px] font-black tracking-wider text-slate-500 uppercase pb-0.5 border-b border-slate-100">
+                                <span className="flex items-center gap-1">
+                                  <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: color }} />
+                                  {sensor}
+                                </span>
+                                <span className={`h-1 w-1 rounded-full ${isConnected ? "bg-emerald-500 animate-pulse" : "bg-red-500"}`} />
+                              </div>
+
+                              {isConnected ? (
+                                <div className="mt-1 space-y-1">
+                                  {/* Temp Row */}
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-0.5 text-slate-450">
+                                      <Thermometer className="h-3 w-3 text-orange-500" />
+                                    </div>
+                                    <span className="text-[10px] font-black tracking-tight tabular-nums text-slate-800">
+                                      {Number(data.temperature).toFixed(1)}
+                                      <span className="text-[8px] font-normal text-slate-450 ml-0.5">°C</span>
+                                    </span>
+                                  </div>
+                                  
+                                  {/* Hum Row */}
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-0.5 text-slate-450">
+                                      <Droplets className="h-3 w-3 text-blue-500" />
+                                    </div>
+                                    <span className="text-[10px] font-black tracking-tight tabular-nums text-slate-800">
+                                      {Number(data.humidity).toFixed(0)}
+                                      <span className="text-[8px] font-normal text-slate-450 ml-0.5">%</span>
+                                    </span>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="mt-1 py-0.5 text-center text-red-500 font-extrabold uppercase text-[7px] tracking-wider bg-red-50/60 border border-red-100 rounded">
+                                  Hors Ligne
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Right side: Interactive Legend (1/4 width on desktop) */}
+                <Card className="lg:col-span-1 border-slate-200 bg-white shadow-sm flex flex-col justify-between overflow-hidden">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-xs font-black uppercase tracking-wider text-slate-700">
+                      Légende & Signaux
+                    </CardTitle>
+                    <CardDescription className="text-[11px]">
+                      Liste physique des sondes d'acquisition.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="pt-2 pb-4 flex-1">
+                    <div className="flex flex-col gap-2">
+                      {SENSORS.map((sensor) => {
+                        const data = latestReadings[sensor];
+                        const isConnected = !!data;
+                        const isHovered = hoveredSensor === sensor;
+                        const isDimmed = hoveredSensor !== null && !isHovered;
+                        const color = SENSOR_COLORS[sensor];
+                        
+                        return (
+                          <div
+                            key={sensor}
+                            onMouseEnter={() => setHoveredSensor(sensor)}
+                            onMouseLeave={() => setHoveredSensor(null)}
+                            onClick={() => setHoveredSensor(isHovered ? null : sensor)}
+                            className={`flex items-center justify-between p-2.5 rounded-lg border transition-all duration-200 cursor-pointer select-none ${
+                              isHovered
+                                ? "bg-orange-50/40 border-orange-300 shadow-sm scale-[1.01]"
+                                : isDimmed
+                                ? "opacity-35 scale-[0.98] border-slate-100"
+                                : "bg-white border-slate-150 hover:bg-slate-50/50 hover:border-slate-300"
+                            }`}
+                            style={{
+                              borderLeftWidth: "4px",
+                              borderLeftColor: color,
+                            }}
+                          >
+                            <div className="flex flex-col gap-0.5 overflow-hidden">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[11px] font-black uppercase text-slate-800 leading-none">{sensor}</span>
+                                <span className="text-[9px] text-slate-400 font-semibold truncate max-w-[110px]" title={SENSOR_INFO[sensor].name}>
+                                  {SENSOR_INFO[sensor].name}
+                                </span>
+                              </div>
+                              <span className="text-[9px] font-bold text-slate-450 uppercase leading-none">
+                                {isConnected ? "Connecté" : "Déconnecté"}
+                              </span>
+                            </div>
+                            
+                            {isConnected ? (
+                              <div className="flex items-center gap-2 text-slate-700 shrink-0">
+                                <div className="flex items-center gap-0.5">
+                                  <Thermometer className="h-3 w-3 text-orange-500" />
+                                  <span className="text-[11px] font-black tabular-nums">{Number(data.temperature).toFixed(1)}°</span>
+                                </div>
+                                <div className="flex items-center gap-0.5 border-l border-slate-100 pl-1.5">
+                                  <Droplets className="h-3 w-3 text-blue-500" />
+                                  <span className="text-[11px] font-black tabular-nums">{Number(data.humidity).toFixed(0)}%</span>
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-[8px] font-black uppercase text-red-500 bg-red-50 px-1 py-0.5 rounded shrink-0">
+                                NC
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
 
               {/* INTERACTIVE SENSOR COMPARISON FILTER BAR */}
               <Card className="border-slate-200 bg-white shadow-sm">

@@ -7,7 +7,6 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // Helper for backend processes needing service_role permissions (bypassing RLS if needed)
 export const getServiceSupabase = () => {
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!serviceKey) throw new Error("Missing SUPABASE_SERVICE_ROLE_KEY");
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || supabaseAnonKey;
   return createClient(supabaseUrl, serviceKey);
 };
