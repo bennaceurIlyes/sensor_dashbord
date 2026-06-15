@@ -82,15 +82,15 @@ const SENSOR_COLORS: Record<string, string> = {
   DHT8: "#d946ef", // Fuchsia
 };
 
-const SENSOR_INFO: Record<string, { x: number; y: number; name: string }> = {
-  DHT1: { x: 86, y: 13, name: "Entrée Capteur Solaire (Haut)" },
-  DHT2: { x: 38, y: 13, name: "Milieu Capteur Solaire" },
-  DHT3: { x: 10, y: 25, name: "Sortie Capteur Solaire (Bas)" },
-  DHT4: { x: 10, y: 66, name: "Entrée Chambre Séchage" },
-  DHT5: { x: 42, y: 89, name: "Milieu Chambre Séchage" },
-  DHT6: { x: 62, y: 39, name: "Plafond Chambre Séchage" },
-  DHT7: { x: 74, y: 89, name: "Bas Chambre Séchage" },
-  DHT8: { x: 88, y: 67, name: "Sortie Chambre Séchage" },
+const SENSOR_INFO: Record<string, { x: number; y: number; labelX: number; labelY: number; name: string }> = {
+  DHT1: { x: 74, y: 12, labelX: 86, labelY: 13, name: "Entrée Capteur Solaire (Haut)" },
+  DHT2: { x: 54, y: 22, labelX: 38, labelY: 13, name: "Milieu Capteur Solaire" },
+  DHT3: { x: 27, y: 38, labelX: 10, labelY: 25, name: "Sortie Capteur Solaire (Bas)" },
+  DHT4: { x: 34, y: 61, labelX: 10, labelY: 66, name: "Entrée Chambre Séchage" },
+  DHT5: { x: 52, y: 68, labelX: 42, labelY: 89, name: "Milieu Chambre Séchage" },
+  DHT6: { x: 54, y: 54, labelX: 62, labelY: 39, name: "Plafond Chambre Séchage" },
+  DHT7: { x: 63, y: 76, labelX: 74, labelY: 89, name: "Bas Chambre Séchage" },
+  DHT8: { x: 72, y: 63, labelX: 88, labelY: 67, name: "Sortie Chambre Séchage" },
 };
 
 // Helper for physical data validation (DHT22 sensor noise filter)
@@ -649,7 +649,71 @@ export default function Dashboard() {
                         }}
                       />
                       
-                      {/* 8 Sensor Widgets / Markers */}
+                      {/* SVG Connecting Lines for Desktop */}
+                      <svg className="hidden md:block absolute inset-0 w-full h-full pointer-events-none select-none z-10">
+                        {SENSORS.map((sensor) => {
+                          const pos = SENSOR_INFO[sensor];
+                          const isHovered = hoveredSensor === sensor;
+                          const isDimmed = hoveredSensor !== null && !isHovered;
+                          const color = SENSOR_COLORS[sensor];
+                          
+                          return (
+                            <g key={`line-${sensor}`} className="transition-all duration-300">
+                              {/* Glowing background line on hover */}
+                              {isHovered && (
+                                <line
+                                  x1={`${pos.x}%`}
+                                  y1={`${pos.y}%`}
+                                  x2={`${pos.labelX}%`}
+                                  y2={`${pos.labelY}%`}
+                                  stroke={color}
+                                  strokeWidth="3"
+                                  strokeOpacity="0.4"
+                                  className="blur-[2px]"
+                                />
+                              )}
+                              {/* Main connecting line */}
+                              <line
+                                x1={`${pos.x}%`}
+                                y1={`${pos.y}%`}
+                                x2={`${pos.labelX}%`}
+                                y2={`${pos.labelY}%`}
+                                stroke={isHovered ? color : "#cbd5e1"}
+                                strokeWidth={isHovered ? "1.5" : "1"}
+                                strokeDasharray={isHovered ? "none" : "3,3"}
+                                strokeOpacity={isHovered ? "1" : isDimmed ? "0.15" : "0.5"}
+                                className="transition-all duration-300"
+                              />
+                              {/* Physical Sensor Dot anchor */}
+                              <circle
+                                cx={`${pos.x}%`}
+                                cy={`${pos.y}%`}
+                                r={isHovered ? "5" : "3.5"}
+                                fill={color}
+                                stroke="#ffffff"
+                                strokeWidth="1.5"
+                                strokeOpacity={isHovered ? "1" : isDimmed ? "0.2" : "0.8"}
+                                fillOpacity={isHovered ? "1" : isDimmed ? "0.2" : "0.8"}
+                                className="transition-all duration-300"
+                              />
+                              {/* Pulsing ring around physical sensor */}
+                              {isHovered && (
+                                <circle
+                                  cx={`${pos.x}%`}
+                                  cy={`${pos.y}%`}
+                                  r="9"
+                                  fill="none"
+                                  stroke={color}
+                                  strokeWidth="1.5"
+                                  className="animate-ping"
+                                />
+                              )}
+                            </g>
+                          );
+                        })}
+                      </svg>
+
+                      {/* --- MOBILE MARKERS (Pulsing Dots) --- */}
                       {SENSORS.map((sensor) => {
                         const data = latestReadings[sensor];
                         const isConnected = !!data;
@@ -657,11 +721,11 @@ export default function Dashboard() {
                         const isDimmed = hoveredSensor !== null && !isHovered;
                         const color = SENSOR_COLORS[sensor];
                         const pos = SENSOR_INFO[sensor];
-                        
+
                         return (
                           <div
-                            key={sensor}
-                            className="absolute transition-all duration-300"
+                            key={`mobile-${sensor}`}
+                            className="md:hidden absolute transition-all duration-300"
                             style={{
                               left: `${pos.x}%`,
                               top: `${pos.y}%`,
@@ -669,14 +733,13 @@ export default function Dashboard() {
                               zIndex: isHovered ? 40 : 20,
                             }}
                           >
-                            {/* --- MOBILE MARKER (Pulsing Dot) --- */}
                             <button
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setHoveredSensor(isHovered ? null : sensor);
                               }}
-                              className={`md:hidden flex items-center justify-center w-8 h-8 rounded-full border-2 bg-white shadow-md transition-all duration-205 cursor-pointer select-none relative ${
+                              className={`flex items-center justify-center w-8 h-8 rounded-full border-2 bg-white shadow-md transition-all duration-205 cursor-pointer select-none relative ${
                                 isHovered 
                                   ? "scale-125 ring-4 ring-orange-500/35 opacity-100" 
                                   : isDimmed 
@@ -703,7 +766,7 @@ export default function Dashboard() {
                             {/* --- MOBILE TOOLTIP / DETAIL PANEL --- */}
                             {isHovered && (
                               <div 
-                                className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 bg-slate-900/95 backdrop-blur-md text-white rounded-xl p-3 shadow-xl border border-slate-800 animate-fade-in pointer-events-none md:hidden z-50 text-[10px]"
+                                className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 bg-slate-900/95 backdrop-blur-md text-white rounded-xl p-3 shadow-xl border border-slate-800 animate-fade-in pointer-events-none z-50 text-[10px]"
                                 style={{
                                   boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.3)",
                                 }}
@@ -737,12 +800,34 @@ export default function Dashboard() {
                                 )}
                               </div>
                             )}
+                          </div>
+                        );
+                      })}
 
-                            {/* --- DESKTOP WIDGET (Mini LCD Screen) --- */}
+                      {/* --- DESKTOP WIDGETS (Mini LCD Screens) --- */}
+                      {SENSORS.map((sensor) => {
+                        const data = latestReadings[sensor];
+                        const isConnected = !!data;
+                        const isHovered = hoveredSensor === sensor;
+                        const isDimmed = hoveredSensor !== null && !isHovered;
+                        const color = SENSOR_COLORS[sensor];
+                        const pos = SENSOR_INFO[sensor];
+
+                        return (
+                          <div
+                            key={`desktop-${sensor}`}
+                            className="hidden md:block absolute transition-all duration-300"
+                            style={{
+                              left: `${pos.labelX}%`,
+                              top: `${pos.labelY}%`,
+                              transform: "translate(-50%, -50%)",
+                              zIndex: isHovered ? 40 : 20,
+                            }}
+                          >
                             <div
                               onMouseEnter={() => setHoveredSensor(sensor)}
                               onMouseLeave={() => setHoveredSensor(null)}
-                              className={`hidden md:flex flex-col p-1.5 rounded-lg bg-white/20 backdrop-blur-[1px] border border-white/30 shadow-sm transition-all duration-300 pointer-events-auto cursor-pointer select-none relative ${
+                              className={`flex flex-col p-1.5 rounded-lg bg-white/20 backdrop-blur-[1px] border border-white/30 shadow-sm transition-all duration-300 pointer-events-auto cursor-pointer select-none relative ${
                                 isHovered
                                   ? "ring-2 ring-orange-500/70 shadow-[0_4px_15px_rgba(249,115,22,0.18)] scale-[1.03] z-30 bg-white/50 backdrop-blur-md border-white/50"
                                   : isDimmed
@@ -773,7 +858,7 @@ export default function Dashboard() {
                                 <div className="mt-1 space-y-0.5">
                                   {/* Temp Row */}
                                   <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-0.5 text-slate-500">
+                                    <div className="flex items-center gap-0.5 text-slate-550">
                                       <Thermometer className="h-3 w-3 text-orange-500" />
                                     </div>
                                     <span className="text-[11px] font-black tracking-tight tabular-nums text-slate-800">
@@ -784,7 +869,7 @@ export default function Dashboard() {
                                   
                                   {/* Hum Row */}
                                   <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-0.5 text-slate-500">
+                                    <div className="flex items-center gap-0.5 text-slate-550">
                                       <Droplets className="h-3 w-3 text-blue-500" />
                                     </div>
                                     <span className="text-[11px] font-black tracking-tight tabular-nums text-slate-800">
