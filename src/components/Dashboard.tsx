@@ -742,59 +742,59 @@ export default function Dashboard() {
                             <div
                               onMouseEnter={() => setHoveredSensor(sensor)}
                               onMouseLeave={() => setHoveredSensor(null)}
-                              className={`hidden md:flex flex-col p-1.5 rounded-lg bg-white/95 backdrop-blur-sm border shadow-sm transition-all duration-300 pointer-events-auto cursor-pointer select-none relative ${
+                              className={`hidden md:flex flex-col p-1 rounded bg-white/95 backdrop-blur-sm border shadow-sm transition-all duration-300 pointer-events-auto cursor-pointer select-none relative ${
                                 isHovered
-                                  ? "ring-2 ring-orange-500/70 shadow-[0_4px_15px_rgba(249,115,22,0.2)] scale-[1.04] z-30"
+                                  ? "ring-2 ring-orange-500/70 shadow-[0_2px_10px_rgba(249,115,22,0.15)] scale-[1.03] z-30"
                                   : isDimmed
                                   ? "opacity-30 scale-95 border-slate-100"
                                   : "opacity-[0.93] hover:opacity-100 border-slate-200/90 hover:scale-[1.01]"
                               }`}
                               style={{
-                                width: "96px",
+                                width: "78px",
                               }}
                             >
                               {/* Glowing pointer/arrow overlay when active */}
                               {isHovered && (
                                 <div 
-                                  className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 rotate-45 border-r border-b border-orange-500/70"
+                                  className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rotate-45 border-r border-b border-orange-500/70"
                                   style={{ backgroundColor: "white", zIndex: -1 }}
                                 />
                               )}
                               
-                              <div className="flex items-center justify-between text-[8px] font-black tracking-wider text-slate-500 uppercase pb-0.5 border-b border-slate-100">
-                                <span className="flex items-center gap-1">
-                                  <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: color }} />
+                              <div className="flex items-center justify-between text-[7px] font-black tracking-wider text-slate-500 uppercase pb-0.5 border-b border-slate-100">
+                                <span className="flex items-center gap-0.5">
+                                  <span className="h-1 w-1 rounded-full" style={{ backgroundColor: color }} />
                                   {sensor}
                                 </span>
                                 <span className={`h-1 w-1 rounded-full ${isConnected ? "bg-emerald-500 animate-pulse" : "bg-red-500"}`} />
                               </div>
 
                               {isConnected ? (
-                                <div className="mt-1 space-y-1">
+                                <div className="mt-0.5 space-y-0.5">
                                   {/* Temp Row */}
                                   <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-0.5 text-slate-450">
-                                      <Thermometer className="h-3 w-3 text-orange-500" />
+                                      <Thermometer className="h-2.5 w-2.5 text-orange-500" />
                                     </div>
-                                    <span className="text-[10px] font-black tracking-tight tabular-nums text-slate-800">
+                                    <span className="text-[8.5px] font-black tracking-tight tabular-nums text-slate-800">
                                       {Number(data.temperature).toFixed(1)}
-                                      <span className="text-[8px] font-normal text-slate-450 ml-0.5">°C</span>
+                                      <span className="text-[6.5px] font-normal text-slate-450 ml-0.5">°C</span>
                                     </span>
                                   </div>
                                   
                                   {/* Hum Row */}
                                   <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-0.5 text-slate-450">
-                                      <Droplets className="h-3 w-3 text-blue-500" />
+                                      <Droplets className="h-2.5 w-2.5 text-blue-500" />
                                     </div>
-                                    <span className="text-[10px] font-black tracking-tight tabular-nums text-slate-800">
+                                    <span className="text-[8.5px] font-black tracking-tight tabular-nums text-slate-800">
                                       {Number(data.humidity).toFixed(0)}
-                                      <span className="text-[8px] font-normal text-slate-450 ml-0.5">%</span>
+                                      <span className="text-[6.5px] font-normal text-slate-450 ml-0.5">%</span>
                                     </span>
                                   </div>
                                 </div>
                               ) : (
-                                <div className="mt-1 py-0.5 text-center text-red-500 font-extrabold uppercase text-[7px] tracking-wider bg-red-50/60 border border-red-100 rounded">
+                                <div className="mt-0.5 py-0.5 text-center text-red-500 font-extrabold uppercase text-[6px] tracking-wider bg-red-50/60 border border-red-100 rounded">
                                   Hors Ligne
                                 </div>
                               )}
