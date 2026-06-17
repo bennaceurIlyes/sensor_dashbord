@@ -34,7 +34,8 @@ import {
   Sliders,
   FileText,
   AlertTriangle,
-  ShieldCheck
+  ShieldCheck,
+  X
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -83,14 +84,14 @@ const SENSOR_COLORS: Record<string, string> = {
 };
 
 const SENSOR_INFO: Record<string, { x: number; y: number; labelX: number; labelY: number; name: string }> = {
-  DHT1: { x: 74, y: 12, labelX: 86, labelY: 13, name: "Entrée Capteur Solaire (Haut)" },
-  DHT2: { x: 54, y: 22, labelX: 38, labelY: 13, name: "Milieu Capteur Solaire" },
-  DHT3: { x: 27, y: 38, labelX: 10, labelY: 25, name: "Sortie Capteur Solaire (Bas)" },
-  DHT4: { x: 34, y: 61, labelX: 10, labelY: 66, name: "Entrée Chambre Séchage" },
-  DHT5: { x: 52, y: 68, labelX: 42, labelY: 89, name: "Milieu Chambre Séchage" },
-  DHT6: { x: 54, y: 54, labelX: 62, labelY: 39, name: "Plafond Chambre Séchage" },
-  DHT7: { x: 63, y: 76, labelX: 74, labelY: 89, name: "Bas Chambre Séchage" },
-  DHT8: { x: 72, y: 63, labelX: 88, labelY: 67, name: "Sortie Chambre Séchage" },
+  DHT1: { x: 82.5, y: 14.5, labelX: 91.8, labelY: 24.5, name: "Entrée Capteur Solaire (Haut)" },
+  DHT2: { x: 49.0, y: 17.5, labelX: 25.8, labelY: 17.2, name: "Milieu Capteur Solaire" },
+  DHT3: { x: 25.5, y: 45.0, labelX: 9.3, labelY: 51.5, name: "Sortie Capteur Solaire (Bas)" },
+  DHT4: { x: 18.0, y: 68.0, labelX: 13.8, labelY: 88.5, name: "Entrée Chambre Séchage" },
+  DHT5: { x: 52.0, y: 62.0, labelX: 74.0, labelY: 83.5, name: "Milieu Chambre Séchage" },
+  DHT6: { x: 65.5, y: 42.0, labelX: 91.8, labelY: 33.5, name: "Plafond Chambre Séchage" },
+  DHT7: { x: 60.0, y: 78.0, labelX: 61.5, labelY: 89.0, name: "Bas Chambre Séchage" },
+  DHT8: { x: 88.0, y: 50.0, labelX: 89.0, labelY: 76.5, name: "Sortie Chambre Séchage" },
 };
 
 // Helper for physical data validation (DHT22 sensor noise filter)
@@ -220,6 +221,9 @@ export default function Dashboard() {
 
   /* ---------- Interactive Sensor Diagram States ---------- */
   const [hoveredSensor, setHoveredSensor] = useState<string | null>(null);
+
+  /* ---------- Schema Modal State ---------- */
+  const [showSchemaModal, setShowSchemaModal] = useState(false);
 
   /* ---------- Real-Time Logs / Explorer States ---------- */
   const [paginatedData, setPaginatedData] = useState<PivotRow[]>([]);
@@ -648,6 +652,264 @@ export default function Dashboard() {
                           opacity: hoveredSensor ? 0.95 : 1,
                         }}
                       />
+
+                      {/* Controller Box Hotspot */}
+                      <div
+                        className="absolute rounded-lg border-2 border-dashed border-transparent hover:border-orange-500/65 hover:bg-orange-500/10 transition-all cursor-pointer flex items-center justify-center group z-35"
+                        style={{
+                          left: "83.5%",
+                          top: "41.5%",
+                          width: "13.5%",
+                          height: "17.5%",
+                        }}
+                        onClick={() => setShowSchemaModal(true)}
+                        title="Cliquez pour voir le schéma d'architecture système"
+                      >
+                        {/* Pulse effect to draw attention */}
+                        <span className="absolute flex h-2.5 w-2.5 top-2.5 right-2.5">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-500 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-orange-500/85"></span>
+                        </span>
+                        
+                        {/* Micro-tooltip on hover */}
+                        <div className="absolute opacity-0 group-hover:opacity-100 transition-opacity duration-200 bottom-full mb-2 bg-slate-900/95 text-white border border-slate-800 text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded shadow-lg whitespace-nowrap pointer-events-none">
+                          Architecture Système
+                        </div>
+                      </div>
+
+                      {/* --- SYNOPTIC ANIMATIONS & STYLES --- */}
+                      <style>{`
+                        @keyframes flow {
+                          to {
+                            stroke-dashoffset: -20;
+                          }
+                        }
+                        .flow-line {
+                          stroke-dasharray: 6, 6;
+                          animation: flow 1.2s linear infinite;
+                        }
+                        .flow-line-fast {
+                          stroke-dasharray: 6, 6;
+                          animation: flow 0.8s linear infinite;
+                        }
+                        .flow-line-medium {
+                          stroke-dasharray: 6, 6;
+                          animation: flow 1.2s linear infinite;
+                        }
+                        .flow-line-slow {
+                          stroke-dasharray: 6, 6;
+                          animation: flow 1.8s linear infinite;
+                        }
+                        @keyframes fan-spin {
+                          from { transform: rotate(0deg); }
+                          to { transform: rotate(360deg); }
+                        }
+                        .fan-spin-fast {
+                          animation: fan-spin 0.4s linear infinite;
+                          transform-origin: center;
+                        }
+                      `}</style>
+
+                      {/* 1. Animated Airflow paths (Thermodynamically color-coded wind tunnel simulation matching CFD styles) */}
+                      <svg className="absolute inset-0 w-full h-full pointer-events-none select-none z-25" viewBox="0 0 100 100" preserveAspectRatio="none">
+                        <defs>
+                          {/* Thermodynamically accurate gradients */}
+                          {/* Collector: Cool air heats up from inlet (Blue) to exit (Red) */}
+                          <linearGradient id="collector-flow-grad" x1="100%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stopColor="#0ea5e9" stopOpacity="0.8" />
+                            <stop offset="50%" stopColor="#eab308" stopOpacity="0.8" />
+                            <stop offset="100%" stopColor="#ef4444" stopOpacity="0.8" />
+                          </linearGradient>
+                          
+                          {/* Chamber Trays: Hot air enters (Red/Orange) and cools down due to evaporative cooling (Cyan/Blue) */}
+                          <linearGradient id="tray-flow-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" stopColor="#ef4444" stopOpacity="0.75" />
+                            <stop offset="30%" stopColor="#f97316" stopOpacity="0.75" />
+                            <stop offset="70%" stopColor="#0ea5e9" stopOpacity="0.75" />
+                            <stop offset="100%" stopColor="#2563eb" stopOpacity="0.75" />
+                          </linearGradient>
+
+                          <filter id="particle-glow" x="-50%" y="-50%" width="200%" height="200%">
+                            <feGaussianBlur stdDeviation="0.4" result="blur" />
+                            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                          </filter>
+
+                          <marker id="small-arrow-cool" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse">
+                            <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#0ea5e9" />
+                          </marker>
+                          <marker id="small-arrow-hot" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse">
+                            <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#ef4444" />
+                          </marker>
+                          <marker id="small-arrow-cool-blue" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse">
+                            <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#2563eb" />
+                          </marker>
+                        </defs>
+                        
+                        {/* Wind Layer 1: Collector (Cool air heating up) */}
+                        <path
+                          d="M 18 68 C 22 55, 24 48, 25.5 45 M 25.5 45 L 82.5 14.5"
+                          fill="none"
+                          stroke="url(#collector-flow-grad)"
+                          strokeWidth="0.8"
+                          className="flow-line-fast"
+                          markerEnd="url(#small-arrow-hot)"
+                        />
+                        
+                        {/* Collector Flow Particles (glowing bubbles travelling down) */}
+                        <circle r="0.6" fill="#e0f2fe" filter="url(#particle-glow)">
+                          <animateMotion dur="2.4s" repeatCount="indefinite" path="M 18 68 C 22 55, 24 48, 25.5 45 M 25.5 45 L 82.5 14.5" />
+                        </circle>
+                        <circle r="0.4" fill="#fef08a" filter="url(#particle-glow)">
+                          <animateMotion dur="2.4s" begin="0.8s" repeatCount="indefinite" path="M 18 68 C 22 55, 24 48, 25.5 45 M 25.5 45 L 82.5 14.5" />
+                        </circle>
+                        <circle r="0.5" fill="#fecaca" filter="url(#particle-glow)">
+                          <animateMotion dur="2.4s" begin="1.6s" repeatCount="indefinite" path="M 18 68 C 22 55, 24 48, 25.5 45 M 25.5 45 L 82.5 14.5" />
+                        </circle>
+                        
+                        {/* Junction Downflow (Transition duct to chamber) */}
+                        <path
+                          d="M 82.5 14.5 C 84 15, 78 28, 71 34"
+                          fill="none"
+                          stroke="#ef4444"
+                          strokeWidth="0.8"
+                          className="flow-line-fast"
+                          markerEnd="url(#small-arrow-hot)"
+                        />
+                        <circle r="0.6" fill="#fecaca" filter="url(#particle-glow)">
+                          <animateMotion dur="0.8s" repeatCount="indefinite" path="M 82.5 14.5 C 84 15, 78 28, 71 34" />
+                        </circle>
+                        
+                        {/* Chamber Cross-Tray flows (Parallel drying streams cooling as they pass trays) */}
+                        {/* Tray 1 Stream */}
+                        <path
+                          d="M 71 34 C 65 42, 60 50, 50 50 L 35 50"
+                          fill="none"
+                          stroke="url(#tray-flow-grad)"
+                          strokeWidth="0.6"
+                          className="flow-line-slow"
+                          markerEnd="url(#small-arrow-cool-blue)"
+                        />
+                        <circle r="0.5" fill="#fde047" filter="url(#particle-glow)">
+                          <animateMotion dur="1.8s" repeatCount="indefinite" path="M 71 34 C 65 42, 60 50, 50 50 L 35 50" />
+                        </circle>
+
+                        {/* Tray 2 Stream */}
+                        <path
+                          d="M 71 34 C 65 42, 60 58, 50 58 L 35 58"
+                          fill="none"
+                          stroke="url(#tray-flow-grad)"
+                          strokeWidth="0.6"
+                          className="flow-line-medium"
+                          markerEnd="url(#small-arrow-cool-blue)"
+                        />
+                        <circle r="0.5" fill="#f97316" filter="url(#particle-glow)">
+                          <animateMotion dur="1.4s" repeatCount="indefinite" path="M 71 34 C 65 42, 60 58, 50 58 L 35 58" />
+                        </circle>
+
+                        {/* Tray 3 Stream */}
+                        <path
+                          d="M 71 34 C 65 42, 60 66, 50 66 L 35 66"
+                          fill="none"
+                          stroke="url(#tray-flow-grad)"
+                          strokeWidth="0.6"
+                          className="flow-line-slow"
+                          markerEnd="url(#small-arrow-cool-blue)"
+                        />
+                        <circle r="0.5" fill="#fecaca" filter="url(#particle-glow)">
+                          <animateMotion dur="2.0s" repeatCount="indefinite" path="M 71 34 C 65 42, 60 66, 50 66 L 35 66" />
+                        </circle>
+
+                        {/* Tray 4 Stream */}
+                        <path
+                          d="M 71 34 C 65 42, 60 74, 50 74 L 35 74"
+                          fill="none"
+                          stroke="url(#tray-flow-grad)"
+                          strokeWidth="0.6"
+                          className="flow-line-medium"
+                          markerEnd="url(#small-arrow-cool-blue)"
+                        />
+                        <circle r="0.5" fill="#ef4444" filter="url(#particle-glow)">
+                          <animateMotion dur="1.5s" repeatCount="indefinite" path="M 71 34 C 65 42, 60 74, 50 74 L 35 74" />
+                        </circle>
+                        
+                        {/* Exhaust Outlet flow (Saturated humid air exiting) */}
+                        <path
+                          d="M 35 74 C 45 78, 75 70, 88 51.5"
+                          fill="none"
+                          stroke="#2563eb"
+                          strokeWidth="0.8"
+                          className="flow-line-medium"
+                          markerEnd="url(#small-arrow-cool-blue)"
+                        />
+                        <circle r="0.6" fill="#93c5fd" filter="url(#particle-glow)">
+                          <animateMotion dur="1.1s" repeatCount="indefinite" path="M 35 74 C 45 78, 75 70, 88 51.5" />
+                        </circle>
+                      </svg>
+
+                      {/* 2. Transparent 7-blade Spinning Propellers (Overlaying the 3D axial fans in the background render) */}
+                      {/* Fan 1 (Inlet Left) */}
+                      <div className="absolute z-30 flex items-center justify-center bg-transparent pointer-events-none" style={{ left: "15.6%", top: "69.2%", width: "8.5%", height: "8.5%", transform: "translate(-50%, -50%)" }} title="Axial Fan 1 (Forced Intake)">
+                        <svg className="w-full h-full text-slate-800/70 fan-spin-fast" viewBox="0 0 24 24" fill="none">
+                          <circle cx="12" cy="12" r="2.2" fill="#000" />
+                          <path d="M12 12 C12 7, 14.5 5, 13 3 C11 5, 12 7, 12 12" fill="currentColor" />
+                          <path d="M12 12 C15.5 9.5, 18 10, 19 8 C17.5 7.5, 15.5 9.5, 12 12" fill="currentColor" />
+                          <path d="M12 12 C17 13.5, 18.5 16, 20 15 C18.5 13.5, 17 13.5, 12 12" fill="currentColor" />
+                          <path d="M12 12 C14.5 16.5, 14.5 19, 13.5 21 C12.5 19, 13.5 16.5, 12 12" fill="currentColor" />
+                          <path d="M12 12 C9.5 15.5, 8.5 18, 6.5 19 C7 17.5, 9 15.5, 12 12" fill="currentColor" />
+                          <path d="M12 12 C7 12, 5 9.5, 3.5 10.5 C5 11, 7 12, 12 12" fill="currentColor" />
+                          <path d="M12 12 C8 8, 7 5.5, 5.5 4 C6.5 5, 8 8, 12 12" fill="currentColor" />
+                        </svg>
+                      </div>
+                      
+                      {/* Fan 2 (Inlet Right) */}
+                      <div className="absolute z-30 flex items-center justify-center bg-transparent pointer-events-none" style={{ left: "27.5%", top: "73.5%", width: "8.5%", height: "8.5%", transform: "translate(-50%, -50%)" }} title="Axial Fan 2 (Forced Intake)">
+                        <svg className="w-full h-full text-slate-800/70 fan-spin-fast" viewBox="0 0 24 24" fill="none">
+                          <circle cx="12" cy="12" r="2.2" fill="#000" />
+                          <path d="M12 12 C12 7, 14.5 5, 13 3 C11 5, 12 7, 12 12" fill="currentColor" />
+                          <path d="M12 12 C15.5 9.5, 18 10, 19 8 C17.5 7.5, 15.5 9.5, 12 12" fill="currentColor" />
+                          <path d="M12 12 C17 13.5, 18.5 16, 20 15 C18.5 13.5, 17 13.5, 12 12" fill="currentColor" />
+                          <path d="M12 12 C14.5 16.5, 14.5 19, 13.5 21 C12.5 19, 13.5 16.5, 12 12" fill="currentColor" />
+                          <path d="M12 12 C9.5 15.5, 8.5 18, 6.5 19 C7 17.5, 9 15.5, 12 12" fill="currentColor" />
+                          <path d="M12 12 C7 12, 5 9.5, 3.5 10.5 C5 11, 7 12, 12 12" fill="currentColor" />
+                          <path d="M12 12 C8 8, 7 5.5, 5.5 4 C6.5 5, 8 8, 12 12" fill="currentColor" />
+                        </svg>
+                      </div>
+
+                      {/* Fan 3 (Transition Duct Assist) */}
+                      <div className="absolute z-30 flex items-center justify-center bg-transparent pointer-events-none" style={{ left: "71.0%", top: "34.0%", width: "11%", height: "11%", transform: "translate(-50%, -50%)" }} title="Axial Fan 3 (Transfer Assist)">
+                        <svg className="w-full h-full text-slate-800/70 fan-spin-fast" viewBox="0 0 24 24" fill="none">
+                          <circle cx="12" cy="12" r="2.2" fill="#000" />
+                          <path d="M12 12 C12 7, 14.5 5, 13 3 C11 5, 12 7, 12 12" fill="currentColor" />
+                          <path d="M12 12 C15.5 9.5, 18 10, 19 8 C17.5 7.5, 15.5 9.5, 12 12" fill="currentColor" />
+                          <path d="M12 12 C17 13.5, 18.5 16, 20 15 C18.5 13.5, 17 13.5, 12 12" fill="currentColor" />
+                          <path d="M12 12 C14.5 16.5, 14.5 19, 13.5 21 C12.5 19, 13.5 16.5, 12 12" fill="currentColor" />
+                          <path d="M12 12 C9.5 15.5, 8.5 18, 6.5 19 C7 17.5, 9 15.5, 12 12" fill="currentColor" />
+                          <path d="M12 12 C7 12, 5 9.5, 3.5 10.5 C5 11, 7 12, 12 12" fill="currentColor" />
+                          <path d="M12 12 C8 8, 7 5.5, 5.5 4 C6.5 5, 8 8, 12 12" fill="currentColor" />
+                        </svg>
+                      </div>
+
+                      {/* Fan 4 (Outlet Exhaust) */}
+                      <div className="absolute z-30 flex items-center justify-center bg-transparent pointer-events-none" style={{ left: "88.0%", top: "51.5%", width: "10%", height: "10%", transform: "translate(-50%, -50%)" }} title="Axial Fan 4 (Exhaust)">
+                        <svg className="w-full h-full text-slate-800/70 fan-spin-fast" viewBox="0 0 24 24" fill="none">
+                          <circle cx="12" cy="12" r="2.2" fill="#000" />
+                          <path d="M12 12 C12 7, 14.5 5, 13 3 C11 5, 12 7, 12 12" fill="currentColor" />
+                          <path d="M12 12 C15.5 9.5, 18 10, 19 8 C17.5 7.5, 15.5 9.5, 12 12" fill="currentColor" />
+                          <path d="M12 12 C17 13.5, 18.5 16, 20 15 C18.5 13.5, 17 13.5, 12 12" fill="currentColor" />
+                          <path d="M12 12 C14.5 16.5, 14.5 19, 13.5 21 C12.5 19, 13.5 16.5, 12 12" fill="currentColor" />
+                          <path d="M12 12 C9.5 15.5, 8.5 18, 6.5 19 C7 17.5, 9 15.5, 12 12" fill="currentColor" />
+                          <path d="M12 12 C7 12, 5 9.5, 3.5 10.5 C5 11, 7 12, 12 12" fill="currentColor" />
+                          <path d="M12 12 C8 8, 7 5.5, 5.5 4 C6.5 5, 8 8, 12 12" fill="currentColor" />
+                        </svg>
+                      </div>
+
+                      {/* 3. Premium Green Product Badges near trays (Typography-based clean labels) */}
+                      <div className="absolute z-30 bg-emerald-50/90 backdrop-blur-sm border border-emerald-200/80 text-emerald-800 text-[9px] font-extrabold uppercase tracking-wider py-0.5 px-2 rounded-md shadow-sm pointer-events-none transition-all duration-200" style={{ left: "64%", top: "54%" }}>
+                        Produit : Tranches d'abricot
+                      </div>
+                      <div className="absolute z-30 bg-emerald-50/90 backdrop-blur-sm border border-emerald-200/80 text-emerald-800 text-[9px] font-extrabold uppercase tracking-wider py-0.5 px-2 rounded-md shadow-sm pointer-events-none transition-all duration-200" style={{ left: "64%", top: "70%" }}>
+                        Produit : Tranches de tomate
+                      </div>
                       
                       {/* SVG Connecting Lines for Desktop */}
                       <svg className="hidden md:block absolute inset-0 w-full h-full pointer-events-none select-none z-10">
@@ -1843,6 +2105,54 @@ export default function Dashboard() {
           Université de Béchar • Département de Physique & Énergies Renouvelables • Dispositif IoT Séchoir Solaire © {new Date().getFullYear()}
         </footer>
       </div>
+
+      {/* ──── SCHEMA ARCHITECTURE MODAL (LIGHT THEME) ──── */}
+      {showSchemaModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white border border-slate-200 rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col">
+            {/* Modal Header */}
+            <div className="sticky top-0 bg-slate-50 border-b border-slate-200 py-3.5 px-5 flex items-center justify-between z-10">
+              <div>
+                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900 flex items-center gap-2">
+                  <Info className="h-4.5 w-4.5 text-orange-600" />
+                  Schéma d'Architecture Système - Séchoir Solaire
+                </h3>
+                <p className="text-[11px] text-slate-500 mt-0.5 normal-case font-sans">
+                  Spécifications de câblage, broches GPIO de l'ESP32 et communication UART.
+                </p>
+              </div>
+              <button 
+                onClick={() => setShowSchemaModal(false)}
+                className="text-slate-400 hover:text-white transition-all cursor-pointer p-1.5 rounded-lg hover:bg-slate-100"
+              >
+                <X className="h-4.5 w-4.5" />
+              </button>
+            </div>
+            
+            {/* Modal Body */}
+            <div className="p-6 bg-slate-50/50 flex items-center justify-center overflow-hidden">
+              <img 
+                src="/schema_architecture.jpg" 
+                alt="Schéma d'architecture du séchoir solaire" 
+                className="max-w-full max-h-[65vh] object-contain rounded-lg border border-slate-200 shadow-md bg-white"
+              />
+            </div>
+            
+            {/* Modal Footer */}
+            <div className="p-4 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-2.5 text-[10px] text-slate-500 font-mono">
+              <span>Alimentation: 12V DC • Double ESP32 (Transmetteur/Récepteur)</span>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-[10px] h-7 bg-white hover:bg-slate-50 border-slate-200 text-slate-700"
+                onClick={() => window.open('/schema_architecture.jpg', '_blank')}
+              >
+                Ouvrir dans un nouvel onglet
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
