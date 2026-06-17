@@ -500,6 +500,102 @@ export default function Dashboard() {
     return pages;
   };
 
+  /* ---------- Food slices rendering helpers ---------- */
+  const renderTomatoSlices = () => {
+    const slices = [
+      { x: 28.5, rot: 45, offset: -0.2 },
+      { x: 30.8, rot: 110, offset: 0.3 },
+      { x: 33.2, rot: 15, offset: -0.5 },
+      { x: 35.5, rot: 280, offset: 0.1 },
+      { x: 38.0, rot: 95, offset: -0.4 },
+      { x: 40.2, rot: 190, offset: 0.2 },
+      { x: 42.5, rot: 30, offset: -0.1 },
+      { x: 44.8, rot: 145, offset: 0.4 },
+      { x: 47.2, rot: 220, offset: -0.3 },
+      { x: 49.5, rot: 75, offset: 0.1 },
+      { x: 51.8, rot: 310, offset: -0.2 },
+    ];
+    const yLeft = 60.1;
+    return slices.map((s, idx) => {
+      const dx = s.x - 26.3;
+      const yBase = yLeft - 0.15 * dx;
+      const y = yBase + s.offset;
+      const scale = 1.0 - 0.013 * dx;
+      return (
+        <use
+          key={`tomato-${idx}`}
+          href="#tomato-slice"
+          x="0"
+          y="0"
+          transform={`translate(${s.x}, ${y}) scale(${scale}) scaleY(0.45) rotate(${s.rot})`}
+        />
+      );
+    });
+  };
+
+  const renderFigSlices = () => {
+    const slices = [
+      { x: 29.0, rot: 15, offset: 0.1 },
+      { x: 31.5, rot: 80, offset: -0.3 },
+      { x: 34.0, rot: 140, offset: 0.4 },
+      { x: 36.5, rot: 210, offset: -0.2 },
+      { x: 39.0, rot: 270, offset: 0.2 },
+      { x: 41.5, rot: 325, offset: -0.4 },
+      { x: 44.0, rot: 45, offset: 0.1 },
+      { x: 46.5, rot: 115, offset: -0.1 },
+      { x: 49.0, rot: 185, offset: 0.3 },
+      { x: 51.5, rot: 255, offset: -0.2 },
+    ];
+    const yLeft = 64.6;
+    return slices.map((s, idx) => {
+      const dx = s.x - 26.3;
+      const yBase = yLeft - 0.15 * dx;
+      const y = yBase + s.offset;
+      const scale = 0.9 - 0.012 * dx;
+      return (
+        <use
+          key={`fig-${idx}`}
+          href="#fig-half"
+          x="0"
+          y="0"
+          transform={`translate(${s.x}, ${y}) scale(${scale}) scaleY(0.45) rotate(${s.rot})`}
+        />
+      );
+    });
+  };
+
+  const renderAppleSlices = () => {
+    const slices = [
+      { x: 28.0, rot: 330, offset: -0.2 },
+      { x: 30.5, rot: 60, offset: 0.2 },
+      { x: 33.0, rot: 125, offset: -0.4 },
+      { x: 35.5, rot: 195, offset: 0.1 },
+      { x: 38.0, rot: 260, offset: -0.3 },
+      { x: 40.5, rot: 315, offset: 0.3 },
+      { x: 43.0, rot: 20, offset: -0.1 },
+      { x: 45.5, rot: 90, offset: 0.2 },
+      { x: 48.0, rot: 160, offset: -0.2 },
+      { x: 50.5, rot: 225, offset: 0.1 },
+      { x: 53.0, rot: 290, offset: -0.1 },
+    ];
+    const yLeft = 69.2;
+    return slices.map((s, idx) => {
+      const dx = s.x - 26.3;
+      const yBase = yLeft - 0.15 * dx;
+      const y = yBase + s.offset;
+      const scale = 1.0 - 0.013 * dx;
+      return (
+        <use
+          key={`apple-${idx}`}
+          href="#apple-slice"
+          x="0"
+          y="0"
+          transform={`translate(${s.x}, ${y}) scale(${scale}) scaleY(0.45) rotate(${s.rot})`}
+        />
+      );
+    });
+  };
+
   return (
     <div className="min-h-screen bg-slate-50/70 text-slate-900 flex flex-col md:flex-row font-sans">
       
@@ -652,8 +748,9 @@ export default function Dashboard() {
                           opacity: hoveredSensor ? 0.95 : 1,
                         }}
                       />
-
-                      {/* Controller Box Hotspot */}
+                      
+                      {/* Temporary click coordinate helper */}
+                      {/* Controller Box Hotspot (Retained from original layout) */}
                       <div
                         className="absolute rounded-lg border-2 border-dashed border-transparent hover:border-orange-500/65 hover:bg-orange-500/10 transition-all cursor-pointer flex items-center justify-center group z-35"
                         style={{
@@ -684,12 +781,8 @@ export default function Dashboard() {
                             stroke-dashoffset: -20;
                           }
                         }
-                        .flow-line {
-                          stroke-dasharray: 6, 6;
-                          animation: flow 1.2s linear infinite;
-                        }
                         .flow-line-fast {
-                          stroke-dasharray: 6, 6;
+                          stroke-dasharray: 8, 8;
                           animation: flow 0.8s linear infinite;
                         }
                         .flow-line-medium {
@@ -697,218 +790,106 @@ export default function Dashboard() {
                           animation: flow 1.2s linear infinite;
                         }
                         .flow-line-slow {
-                          stroke-dasharray: 6, 6;
+                          stroke-dasharray: 5, 5;
                           animation: flow 1.8s linear infinite;
                         }
                         @keyframes fan-spin {
                           from { transform: rotate(0deg); }
                           to { transform: rotate(360deg); }
                         }
-                        .fan-spin-fast {
-                          animation: fan-spin 0.4s linear infinite;
-                          transform-origin: center;
+                        .fan-spin-animate {
+                          animation: fan-spin 0.28s linear infinite;
+                          transform-origin: 50px 50px;
                         }
                       `}</style>
 
-                      {/* 1. Animated Airflow paths (Thermodynamically color-coded wind tunnel simulation matching CFD styles) */}
+                      {/* Master Interactive SVG Overlay */}
                       <svg className="absolute inset-0 w-full h-full pointer-events-none select-none z-25" viewBox="0 0 100 100" preserveAspectRatio="none">
                         <defs>
-                          {/* Thermodynamically accurate gradients */}
-                          {/* Collector: Cool air heats up from inlet (Blue) to exit (Red) */}
-                          <linearGradient id="collector-flow-grad" x1="100%" y1="0%" x2="0%" y2="100%">
-                            <stop offset="0%" stopColor="#0ea5e9" stopOpacity="0.8" />
-                            <stop offset="50%" stopColor="#eab308" stopOpacity="0.8" />
-                            <stop offset="100%" stopColor="#ef4444" stopOpacity="0.8" />
-                          </linearGradient>
-                          
-                          {/* Chamber Trays: Hot air enters (Red/Orange) and cools down due to evaporative cooling (Cyan/Blue) */}
-                          <linearGradient id="tray-flow-grad" x1="0%" y1="0%" x2="100%" y2="0%">
-                            <stop offset="0%" stopColor="#ef4444" stopOpacity="0.75" />
-                            <stop offset="30%" stopColor="#f97316" stopOpacity="0.75" />
-                            <stop offset="70%" stopColor="#0ea5e9" stopOpacity="0.75" />
-                            <stop offset="100%" stopColor="#2563eb" stopOpacity="0.75" />
+                          {/* Thermodynamically accurate gradients for CFD style */}
+                          {/* Fig skin gradient */}
+                          <linearGradient id="fig-skin-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stopColor="#6b21a8" />
+                            <stop offset="100%" stopColor="#15803d" />
                           </linearGradient>
 
+                          {/* Glow filters */}
                           <filter id="particle-glow" x="-50%" y="-50%" width="200%" height="200%">
                             <feGaussianBlur stdDeviation="0.4" result="blur" />
                             <feComposite in="SourceGraphic" in2="blur" operator="over" />
                           </filter>
+                          <filter id="wisp-glow" x="-20%" y="-20%" width="140%" height="140%">
+                            <feGaussianBlur stdDeviation="0.3" result="blur" />
+                            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                          </filter>
 
-                          <marker id="small-arrow-cool" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse">
-                            <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#0ea5e9" />
-                          </marker>
-                          <marker id="small-arrow-hot" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse">
-                            <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#ef4444" />
-                          </marker>
-                          <marker id="small-arrow-cool-blue" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse">
-                            <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#2563eb" />
-                          </marker>
+                          {/* ------------------ FOOD TEMPLATES ------------------ */}
+                          {/* Tomato Slice */}
+                          <g id="tomato-slice">
+                            <ellipse cx="0" cy="1" rx="10" ry="10" fill="#000" opacity="0.25" filter="url(#particle-glow)" />
+                            <circle cx="0" cy="0" r="10" fill="#dc2626" stroke="#7f1d1d" strokeWidth="0.8" />
+                            <circle cx="0" cy="0" r="8.5" fill="#ef4444" />
+                            {/* Seed chambers */}
+                            <path d="M -1.5 -1.5 C -1.5 -5, -5 -5, -5 -1.5 C -5 0, -1.5 -1.5, -1.5 -1.5 Z" fill="#65a30d" opacity="0.75" />
+                            <circle cx="-3.5" cy="-3" r="0.6" fill="#fef08a" />
+                            <circle cx="-3" cy="-3.8" r="0.6" fill="#fef08a" />
+                            <path d="M 1.5 -1.5 C 1.5 -5, 5 -5, 5 -1.5 C 5 0, 1.5 -1.5, 1.5 -1.5 Z" fill="#65a30d" opacity="0.75" transform="scale(-1, 1)" />
+                            <circle cx="3.5" cy="-3" r="0.6" fill="#fef08a" />
+                            <circle cx="3" cy="-3.8" r="0.6" fill="#fef08a" />
+                            <path d="M -1.5 1.5 C -1.5 5, -5 5, -5 1.5 C -5 0, -1.5 1.5, -1.5 1.5 Z" fill="#65a30d" opacity="0.75" transform="scale(1, -1)" />
+                            <circle cx="-3.5" cy="3" r="0.6" fill="#fef08a" />
+                            <circle cx="-3" cy="3.8" r="0.6" fill="#fef08a" />
+                            <path d="M 1.5 1.5 C 1.5 5, 5 5, 5 1.5 C 5 0, 1.5 1.5, 1.5 1.5 Z" fill="#65a30d" opacity="0.75" transform="scale(-1, -1)" />
+                            <circle cx="3.5" cy="3" r="0.6" fill="#fef08a" />
+                            <circle cx="3" cy="3.8" r="0.6" fill="#fef08a" />
+                            <circle cx="0" cy="0" r="2.5" fill="#ef4444" />
+                          </g>
+
+                          {/* Fig Half */}
+                          <g id="fig-half">
+                            <path d="M -6.5 8 C -10 2, -6.5 -6, 0 -9.5 C 6.5 -6, 10 2, 6.5 8 C 5 9.5, -5 9.5, -6.5 8 Z" fill="#000" opacity="0.25" filter="url(#particle-glow)" transform="translate(0, 1)" />
+                            <path d="M -6.5 8 C -10 2, -6.5 -6, 0 -9.5 C 6.5 -6, 10 2, 6.5 8 C 5 9.5, -5 9.5, -6.5 8 Z" fill="url(#fig-skin-grad)" stroke="#3b0764" strokeWidth="0.8" />
+                            <path d="M -5.5 7 C -8.5 1.5, -5.5 -5, 0 -8 C 5.5 -5, 8.5 1.5, 5.5 7 C 4 8.2, -4 8.2, -5.5 7 Z" fill="#fef08a" opacity="0.85" />
+                            <path d="M -4.2 5.8 C -6.5 1, -4.2 -4, 0 -6.5 C 4.2 -4, 6.5 1, 4.2 5.8 Z" fill="#be123c" />
+                            <circle cx="-1.5" cy="1.5" r="0.5" fill="#fecdd3" />
+                            <circle cx="1.5" cy="1.5" r="0.5" fill="#fecdd3" />
+                            <circle cx="0" cy="-1.5" r="0.5" fill="#fecdd3" />
+                            <circle cx="-2" cy="-0.5" r="0.5" fill="#fecdd3" />
+                            <circle cx="2" cy="-0.5" r="0.5" fill="#fecdd3" />
+                            <circle cx="-0.8" cy="3.5" r="0.5" fill="#fecdd3" />
+                            <circle cx="0.8" cy="3.5" r="0.5" fill="#fecdd3" />
+                          </g>
+
+                          {/* Apple Slice */}
+                          <g id="apple-slice">
+                            <path d="M -10 0 C -10 -6.5, 0 -8, 10 0 C 5 3, -5 3, -10 0 Z" fill="#000" opacity="0.2" filter="url(#particle-glow)" transform="translate(0, 1)" />
+                            <path d="M -10 0 C -10 -6.5, 0 -8, 10 0 C 5 2.5, -5 2.5, -10 0 Z" fill="#fafaf9" />
+                            <path d="M -10 0 C -10 -6.5, 0 -8, 10 0" fill="none" stroke="#e11d48" strokeWidth="1" />
+                            <path d="M -1.5 -1.5 Q 0 -3 1.5 -1.5" fill="none" stroke="#d6d3d1" strokeWidth="0.5" />
+                            <ellipse cx="0" cy="-1.5" rx="0.6" ry="1.1" fill="#78350f" transform="rotate(15)" />
+                          </g>
                         </defs>
-                        
-                        {/* Wind Layer 1: Collector (Cool air heating up) */}
-                        <path
-                          d="M 18 68 C 22 55, 24 48, 25.5 45 M 25.5 45 L 82.5 14.5"
-                          fill="none"
-                          stroke="url(#collector-flow-grad)"
-                          strokeWidth="0.8"
-                          className="flow-line-fast"
-                          markerEnd="url(#small-arrow-hot)"
-                        />
-                        
-                        {/* Collector Flow Particles (glowing bubbles travelling down) */}
-                        <circle r="0.6" fill="#e0f2fe" filter="url(#particle-glow)">
-                          <animateMotion dur="2.4s" repeatCount="indefinite" path="M 18 68 C 22 55, 24 48, 25.5 45 M 25.5 45 L 82.5 14.5" />
-                        </circle>
-                        <circle r="0.4" fill="#fef08a" filter="url(#particle-glow)">
-                          <animateMotion dur="2.4s" begin="0.8s" repeatCount="indefinite" path="M 18 68 C 22 55, 24 48, 25.5 45 M 25.5 45 L 82.5 14.5" />
-                        </circle>
-                        <circle r="0.5" fill="#fecaca" filter="url(#particle-glow)">
-                          <animateMotion dur="2.4s" begin="1.6s" repeatCount="indefinite" path="M 18 68 C 22 55, 24 48, 25.5 45 M 25.5 45 L 82.5 14.5" />
-                        </circle>
-                        
-                        {/* Junction Downflow (Transition duct to chamber) */}
-                        <path
-                          d="M 82.5 14.5 C 84 15, 78 28, 71 34"
-                          fill="none"
-                          stroke="#ef4444"
-                          strokeWidth="0.8"
-                          className="flow-line-fast"
-                          markerEnd="url(#small-arrow-hot)"
-                        />
-                        <circle r="0.6" fill="#fecaca" filter="url(#particle-glow)">
-                          <animateMotion dur="0.8s" repeatCount="indefinite" path="M 82.5 14.5 C 84 15, 78 28, 71 34" />
-                        </circle>
-                        
-                        {/* Chamber Cross-Tray flows (Parallel drying streams cooling as they pass trays) */}
-                        {/* Tray 1 Stream */}
-                        <path
-                          d="M 71 34 C 65 42, 60 50, 50 50 L 35 50"
-                          fill="none"
-                          stroke="url(#tray-flow-grad)"
-                          strokeWidth="0.6"
-                          className="flow-line-slow"
-                          markerEnd="url(#small-arrow-cool-blue)"
-                        />
-                        <circle r="0.5" fill="#fde047" filter="url(#particle-glow)">
-                          <animateMotion dur="1.8s" repeatCount="indefinite" path="M 71 34 C 65 42, 60 50, 50 50 L 35 50" />
-                        </circle>
 
-                        {/* Tray 2 Stream */}
-                        <path
-                          d="M 71 34 C 65 42, 60 58, 50 58 L 35 58"
-                          fill="none"
-                          stroke="url(#tray-flow-grad)"
-                          strokeWidth="0.6"
-                          className="flow-line-medium"
-                          markerEnd="url(#small-arrow-cool-blue)"
-                        />
-                        <circle r="0.5" fill="#f97316" filter="url(#particle-glow)">
-                          <animateMotion dur="1.4s" repeatCount="indefinite" path="M 71 34 C 65 42, 60 58, 50 58 L 35 58" />
-                        </circle>
-
-                        {/* Tray 3 Stream */}
-                        <path
-                          d="M 71 34 C 65 42, 60 66, 50 66 L 35 66"
-                          fill="none"
-                          stroke="url(#tray-flow-grad)"
-                          strokeWidth="0.6"
-                          className="flow-line-slow"
-                          markerEnd="url(#small-arrow-cool-blue)"
-                        />
-                        <circle r="0.5" fill="#fecaca" filter="url(#particle-glow)">
-                          <animateMotion dur="2.0s" repeatCount="indefinite" path="M 71 34 C 65 42, 60 66, 50 66 L 35 66" />
-                        </circle>
-
-                        {/* Tray 4 Stream */}
-                        <path
-                          d="M 71 34 C 65 42, 60 74, 50 74 L 35 74"
-                          fill="none"
-                          stroke="url(#tray-flow-grad)"
-                          strokeWidth="0.6"
-                          className="flow-line-medium"
-                          markerEnd="url(#small-arrow-cool-blue)"
-                        />
-                        <circle r="0.5" fill="#ef4444" filter="url(#particle-glow)">
-                          <animateMotion dur="1.5s" repeatCount="indefinite" path="M 71 34 C 65 42, 60 74, 50 74 L 35 74" />
-                        </circle>
-                        
-                        {/* Exhaust Outlet flow (Saturated humid air exiting) */}
-                        <path
-                          d="M 35 74 C 45 78, 75 70, 88 51.5"
-                          fill="none"
-                          stroke="#2563eb"
-                          strokeWidth="0.8"
-                          className="flow-line-medium"
-                          markerEnd="url(#small-arrow-cool-blue)"
-                        />
-                        <circle r="0.6" fill="#93c5fd" filter="url(#particle-glow)">
-                          <animateMotion dur="1.1s" repeatCount="indefinite" path="M 35 74 C 45 78, 75 70, 88 51.5" />
-                        </circle>
+                        {/* ======================================================== */}
+                        {/* INSTANTIATING TOMATO, FIG, AND APPLE SLICES ON TRAYS     */}
+                        {/* ======================================================== */}
+                        <g id="drying-products-layer">
+                          {renderTomatoSlices()}
+                          {renderFigSlices()}
+                          {renderAppleSlices()}
+                        </g>
                       </svg>
 
-                      {/* 2. Transparent 7-blade Spinning Propellers (Overlaying the 3D axial fans in the background render) */}
-                      {/* Fan 1 (Inlet Left) */}
-                      <div className="absolute z-30 flex items-center justify-center bg-transparent pointer-events-none" style={{ left: "15.6%", top: "69.2%", width: "8.5%", height: "8.5%", transform: "translate(-50%, -50%)" }} title="Axial Fan 1 (Forced Intake)">
-                        <svg className="w-full h-full text-slate-800/70 fan-spin-fast" viewBox="0 0 24 24" fill="none">
-                          <circle cx="12" cy="12" r="2.2" fill="#000" />
-                          <path d="M12 12 C12 7, 14.5 5, 13 3 C11 5, 12 7, 12 12" fill="currentColor" />
-                          <path d="M12 12 C15.5 9.5, 18 10, 19 8 C17.5 7.5, 15.5 9.5, 12 12" fill="currentColor" />
-                          <path d="M12 12 C17 13.5, 18.5 16, 20 15 C18.5 13.5, 17 13.5, 12 12" fill="currentColor" />
-                          <path d="M12 12 C14.5 16.5, 14.5 19, 13.5 21 C12.5 19, 13.5 16.5, 12 12" fill="currentColor" />
-                          <path d="M12 12 C9.5 15.5, 8.5 18, 6.5 19 C7 17.5, 9 15.5, 12 12" fill="currentColor" />
-                          <path d="M12 12 C7 12, 5 9.5, 3.5 10.5 C5 11, 7 12, 12 12" fill="currentColor" />
-                          <path d="M12 12 C8 8, 7 5.5, 5.5 4 C6.5 5, 8 8, 12 12" fill="currentColor" />
-                        </svg>
-                      </div>
-                      
-                      {/* Fan 2 (Inlet Right) */}
-                      <div className="absolute z-30 flex items-center justify-center bg-transparent pointer-events-none" style={{ left: "27.5%", top: "73.5%", width: "8.5%", height: "8.5%", transform: "translate(-50%, -50%)" }} title="Axial Fan 2 (Forced Intake)">
-                        <svg className="w-full h-full text-slate-800/70 fan-spin-fast" viewBox="0 0 24 24" fill="none">
-                          <circle cx="12" cy="12" r="2.2" fill="#000" />
-                          <path d="M12 12 C12 7, 14.5 5, 13 3 C11 5, 12 7, 12 12" fill="currentColor" />
-                          <path d="M12 12 C15.5 9.5, 18 10, 19 8 C17.5 7.5, 15.5 9.5, 12 12" fill="currentColor" />
-                          <path d="M12 12 C17 13.5, 18.5 16, 20 15 C18.5 13.5, 17 13.5, 12 12" fill="currentColor" />
-                          <path d="M12 12 C14.5 16.5, 14.5 19, 13.5 21 C12.5 19, 13.5 16.5, 12 12" fill="currentColor" />
-                          <path d="M12 12 C9.5 15.5, 8.5 18, 6.5 19 C7 17.5, 9 15.5, 12 12" fill="currentColor" />
-                          <path d="M12 12 C7 12, 5 9.5, 3.5 10.5 C5 11, 7 12, 12 12" fill="currentColor" />
-                          <path d="M12 12 C8 8, 7 5.5, 5.5 4 C6.5 5, 8 8, 12 12" fill="currentColor" />
-                        </svg>
-                      </div>
-
-                      {/* Fan 3 (Transition Duct Assist) */}
-                      <div className="absolute z-30 flex items-center justify-center bg-transparent pointer-events-none" style={{ left: "71.0%", top: "34.0%", width: "11%", height: "11%", transform: "translate(-50%, -50%)" }} title="Axial Fan 3 (Transfer Assist)">
-                        <svg className="w-full h-full text-slate-800/70 fan-spin-fast" viewBox="0 0 24 24" fill="none">
-                          <circle cx="12" cy="12" r="2.2" fill="#000" />
-                          <path d="M12 12 C12 7, 14.5 5, 13 3 C11 5, 12 7, 12 12" fill="currentColor" />
-                          <path d="M12 12 C15.5 9.5, 18 10, 19 8 C17.5 7.5, 15.5 9.5, 12 12" fill="currentColor" />
-                          <path d="M12 12 C17 13.5, 18.5 16, 20 15 C18.5 13.5, 17 13.5, 12 12" fill="currentColor" />
-                          <path d="M12 12 C14.5 16.5, 14.5 19, 13.5 21 C12.5 19, 13.5 16.5, 12 12" fill="currentColor" />
-                          <path d="M12 12 C9.5 15.5, 8.5 18, 6.5 19 C7 17.5, 9 15.5, 12 12" fill="currentColor" />
-                          <path d="M12 12 C7 12, 5 9.5, 3.5 10.5 C5 11, 7 12, 12 12" fill="currentColor" />
-                          <path d="M12 12 C8 8, 7 5.5, 5.5 4 C6.5 5, 8 8, 12 12" fill="currentColor" />
-                        </svg>
-                      </div>
-
-                      {/* Fan 4 (Outlet Exhaust) */}
-                      <div className="absolute z-30 flex items-center justify-center bg-transparent pointer-events-none" style={{ left: "88.0%", top: "51.5%", width: "10%", height: "10%", transform: "translate(-50%, -50%)" }} title="Axial Fan 4 (Exhaust)">
-                        <svg className="w-full h-full text-slate-800/70 fan-spin-fast" viewBox="0 0 24 24" fill="none">
-                          <circle cx="12" cy="12" r="2.2" fill="#000" />
-                          <path d="M12 12 C12 7, 14.5 5, 13 3 C11 5, 12 7, 12 12" fill="currentColor" />
-                          <path d="M12 12 C15.5 9.5, 18 10, 19 8 C17.5 7.5, 15.5 9.5, 12 12" fill="currentColor" />
-                          <path d="M12 12 C17 13.5, 18.5 16, 20 15 C18.5 13.5, 17 13.5, 12 12" fill="currentColor" />
-                          <path d="M12 12 C14.5 16.5, 14.5 19, 13.5 21 C12.5 19, 13.5 16.5, 12 12" fill="currentColor" />
-                          <path d="M12 12 C9.5 15.5, 8.5 18, 6.5 19 C7 17.5, 9 15.5, 12 12" fill="currentColor" />
-                          <path d="M12 12 C7 12, 5 9.5, 3.5 10.5 C5 11, 7 12, 12 12" fill="currentColor" />
-                          <path d="M12 12 C8 8, 7 5.5, 5.5 4 C6.5 5, 8 8, 12 12" fill="currentColor" />
-                        </svg>
-                      </div>
-
-                      {/* 3. Premium Green Product Badges near trays (Typography-based clean labels) */}
-                      <div className="absolute z-30 bg-emerald-50/90 backdrop-blur-sm border border-emerald-200/80 text-emerald-800 text-[9px] font-extrabold uppercase tracking-wider py-0.5 px-2 rounded-md shadow-sm pointer-events-none transition-all duration-200" style={{ left: "64%", top: "54%" }}>
-                        Produit : Tranches d'abricot
-                      </div>
-                      <div className="absolute z-30 bg-emerald-50/90 backdrop-blur-sm border border-emerald-200/80 text-emerald-800 text-[9px] font-extrabold uppercase tracking-wider py-0.5 px-2 rounded-md shadow-sm pointer-events-none transition-all duration-200" style={{ left: "64%", top: "70%" }}>
-                        Produit : Tranches de tomate
+                      {/* Frosted Glass UI Legend Panel */}
+                      <div className="absolute bottom-3 left-3 z-30 bg-white/75 backdrop-blur-md border border-slate-200/60 p-2.5 rounded-xl shadow-md space-y-1.5 text-[9px] pointer-events-none">
+                        <div className="font-extrabold uppercase tracking-wider text-slate-800 border-b border-slate-150 pb-1 mb-1 flex items-center gap-1.5">
+                          <Sliders className="h-3 w-3 text-orange-500" />
+                          <span>Légende Système</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-slate-650 font-bold">
+                          <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
+                          <span>Matière Première (Abricot/Tomate/Figue)</span>
+                        </div>
                       </div>
                       
                       {/* SVG Connecting Lines for Desktop */}
