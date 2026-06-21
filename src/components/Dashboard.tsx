@@ -84,15 +84,16 @@ const SENSOR_COLORS: Record<string, string> = {
 };
 
 const SENSOR_INFO: Record<string, { x: number; y: number; labelX: number; labelY: number; name: string }> = {
-  DHT1: { x: 82.5, y: 14.5, labelX: 91.8, labelY: 24.5, name: "Entrée Capteur Solaire (Haut)" },
-  DHT2: { x: 49.0, y: 17.5, labelX: 25.8, labelY: 17.2, name: "Milieu Capteur Solaire" },
-  DHT3: { x: 25.5, y: 45.0, labelX: 9.3, labelY: 51.5, name: "Sortie Capteur Solaire (Bas)" },
-  DHT4: { x: 18.0, y: 68.0, labelX: 13.8, labelY: 88.5, name: "Entrée Chambre Séchage" },
-  DHT5: { x: 52.0, y: 62.0, labelX: 74.0, labelY: 83.5, name: "Milieu Chambre Séchage" },
-  DHT6: { x: 65.5, y: 42.0, labelX: 91.8, labelY: 33.5, name: "Plafond Chambre Séchage" },
-  DHT7: { x: 60.0, y: 78.0, labelX: 61.5, labelY: 89.0, name: "Bas Chambre Séchage" },
-  DHT8: { x: 88.0, y: 50.0, labelX: 89.0, labelY: 76.5, name: "Sortie Chambre Séchage" },
+  DHT1: { x: 74.0, y: 12.0, labelX: 86.0, labelY: 13.0, name: "Entrée Capteur Solaire (Haut)" },
+  DHT2: { x: 54.0, y: 22.0, labelX: 38.0, labelY: 13.0, name: "Milieu Capteur Solaire" },
+  DHT3: { x: 27.0, y: 38.0, labelX: 10.0, labelY: 25.0, name: "Sortie Capteur Solaire (Bas)" },
+  DHT4: { x: 34.0, y: 61.0, labelX: 10.0, labelY: 66.0, name: "Entrée Chambre Séchage" },
+  DHT5: { x: 52.0, y: 68.0, labelX: 42.0, labelY: 89.0, name: "Milieu Chambre Séchage" },
+  DHT6: { x: 54.0, y: 54.0, labelX: 62.0, labelY: 39.0, name: "Plafond Chambre Séchage" },
+  DHT7: { x: 63.0, y: 76.0, labelX: 74.0, labelY: 89.0, name: "Bas Chambre Séchage" },
+  DHT8: { x: 72.0, y: 63.0, labelX: 88.0, labelY: 67.0, name: "Sortie Chambre Séchage" },
 };
+
 
 // Helper for physical data validation (DHT22 sensor noise filter)
 const isValidTemp = (t: any) => t !== undefined && t !== null && Number(t) >= 5 && Number(t) <= 85;
@@ -737,7 +738,15 @@ export default function Dashboard() {
                     </div>
                   </CardHeader>
                   <CardContent className="pt-2 pb-6 flex items-center justify-center">
-                    <div className="w-full relative aspect-square max-w-[620px] bg-white rounded-xl border border-slate-150 overflow-hidden shadow-inner p-1">
+                    <div 
+                      className="w-full relative aspect-square max-w-[620px] bg-white rounded-xl border border-slate-150 overflow-hidden shadow-inner p-1 cursor-crosshair"
+                      onClick={(e) => {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        const x = ((e.clientX - rect.left) / rect.width) * 100;
+                        const y = ((e.clientY - rect.top) / rect.height) * 100;
+                        console.log(`Clicked coordinates: x: ${x.toFixed(1)}, y: ${y.toFixed(1)}`);
+                      }}
+                    >
                       
                       {/* Diagram Image */}
                       <img 
@@ -825,7 +834,7 @@ export default function Dashboard() {
 
                           {/* ------------------ FOOD TEMPLATES ------------------ */}
                           {/* Tomato Slice */}
-                          <g id="tomato-slice">
+                          <g id="tomato-slice" style={{ display: 'none' }}>
                             <ellipse cx="0" cy="1" rx="10" ry="10" fill="#000" opacity="0.25" filter="url(#particle-glow)" />
                             <circle cx="0" cy="0" r="10" fill="#dc2626" stroke="#7f1d1d" strokeWidth="0.8" />
                             <circle cx="0" cy="0" r="8.5" fill="#ef4444" />
@@ -846,7 +855,7 @@ export default function Dashboard() {
                           </g>
 
                           {/* Fig Half */}
-                          <g id="fig-half">
+                          <g id="fig-half" style={{ display: 'none' }}>
                             <path d="M -6.5 8 C -10 2, -6.5 -6, 0 -9.5 C 6.5 -6, 10 2, 6.5 8 C 5 9.5, -5 9.5, -6.5 8 Z" fill="#000" opacity="0.25" filter="url(#particle-glow)" transform="translate(0, 1)" />
                             <path d="M -6.5 8 C -10 2, -6.5 -6, 0 -9.5 C 6.5 -6, 10 2, 6.5 8 C 5 9.5, -5 9.5, -6.5 8 Z" fill="url(#fig-skin-grad)" stroke="#3b0764" strokeWidth="0.8" />
                             <path d="M -5.5 7 C -8.5 1.5, -5.5 -5, 0 -8 C 5.5 -5, 8.5 1.5, 5.5 7 C 4 8.2, -4 8.2, -5.5 7 Z" fill="#fef08a" opacity="0.85" />
@@ -861,7 +870,7 @@ export default function Dashboard() {
                           </g>
 
                           {/* Apple Slice */}
-                          <g id="apple-slice">
+                          <g id="apple-slice" style={{ display: 'none' }}>
                             <path d="M -10 0 C -10 -6.5, 0 -8, 10 0 C 5 3, -5 3, -10 0 Z" fill="#000" opacity="0.2" filter="url(#particle-glow)" transform="translate(0, 1)" />
                             <path d="M -10 0 C -10 -6.5, 0 -8, 10 0 C 5 2.5, -5 2.5, -10 0 Z" fill="#fafaf9" />
                             <path d="M -10 0 C -10 -6.5, 0 -8, 10 0" fill="none" stroke="#e11d48" strokeWidth="1" />
